@@ -1,7 +1,6 @@
 services:
   ada:
-    build: .
-    image: ada:latest
+    image: ghcr.io/l8tenever/ada:latest
     container_name: ada
     restart: unless-stopped
     init: true
