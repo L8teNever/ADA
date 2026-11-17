@@ -1,0 +1,68 @@
+/* Skribbl – Zeichenfläche (4:3) skaliert mit Breite UND Höhe, Chat füllt den Rest */
+.sk { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.sk-bar { display: flex; align-items: center; gap: 10px; }
+.sk-clock { min-width: 58px; text-align: center; padding: 4px 10px; border-radius: var(--r-full); background: var(--md-secondary-container); color: var(--md-on-secondary-container); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sk-clock.low { background: var(--md-error-container); color: var(--md-on-error-container); animation: sk-pulse 1s infinite; }
+@keyframes sk-pulse { 50% { transform: scale(1.08); } }
+.sk-word { flex: 1; text-align: center; font-weight: 800; letter-spacing: .14em; font-size: clamp(1rem, 4.6vw, 1.7rem); overflow-wrap: anywhere; line-height: 1.2; }
+.sk-word small { display: block; letter-spacing: .04em; font-size: .6em; font-weight: 600; color: var(--md-on-surface-variant); }
+.sk-rd { font-size: .8rem; font-weight: 700; color: var(--md-on-surface-variant); white-space: nowrap; }
+
+.sk-main { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.sk-left { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.sk-stage { position: relative; width: min(100%, calc(46dvh * 4 / 3)); aspect-ratio: 4 / 3; border-radius: var(--r-md); overflow: hidden; background: #fff; box-shadow: 0 2px 10px var(--md-shadow); touch-action: none; }
+.sk-stage canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.sk-stage.can-draw canvas { cursor: crosshair; }
+.sk-ov { position: absolute; inset: 0; background: rgba(20, 20, 30, .72); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; color: #fff; text-align: center; overflow: auto; font-size: clamp(.8rem, 3.2vw, 1rem); }
+.sk-ov.on { display: flex; }
+.sk-ov .big { font-size: clamp(1.1rem, 5vw, 1.8rem); font-weight: 800; }
+.sk-ov .choices { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.sk-ov .btn { min-height: 44px; }
+.sk-ov table { border-collapse: collapse; min-width: 60%; }
+.sk-ov td { padding: 2px 8px; text-align: left; } .sk-ov td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.sk-ov tr.me td { font-weight: 800; color: #ffe08a; }
+
+.sk-tools { width: min(100%, calc(46dvh * 4 / 3)); display: flex; flex-direction: column; gap: 6px; }
+.sk-tools:empty { display: none; }
+.sk-sw { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; }
+.sk-sw button { aspect-ratio: 1; border-radius: 6px; border: 0; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.sk-sw button.on { box-shadow: 0 0 0 3px var(--md-primary), inset 0 0 0 1px rgba(0,0,0,.25); transform: scale(1.12); z-index: 1; }
+.sk-tl { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.sk-tl button { min-width: 40px; height: 40px; border-radius: var(--r-md); border: 0; background: var(--md-sc-high); cursor: pointer; font-size: 1.1rem; display: grid; place-items: center; padding: 0 6px; color: inherit; }
+.sk-tl button.on { background: var(--md-primary); color: var(--md-on-primary); }
+.sk-tl .wd i { display: block; border-radius: 50%; background: currentColor; }
+.sk-tl .sp { flex: 1; }
+
+.sk-right { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.sk-pl { display: flex; flex-wrap: wrap; gap: 4px; }
+.sk-p { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: var(--r-full); background: var(--md-sc-high); font-size: .78rem; font-weight: 600; }
+.sk-p.drawer { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+.sk-p.ok { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+.sk-p .avatar { width: 24px; height: 24px; font-size: .75rem; }
+.sk-p b { font-variant-numeric: tabular-nums; }
+.sk-p small { opacity: .75; }
+.sk-chat { flex: 1; min-height: 110px; display: flex; flex-direction: column; background: var(--md-sc-low); border-radius: var(--r-lg); overflow: hidden; }
+.sk-log { flex: 1; overflow-y: auto; padding: 8px 10px; font-size: .86rem; display: flex; flex-direction: column; gap: 2px; min-height: 0; }
+.sk-log .l { overflow-wrap: anywhere; }
+.sk-log .l.correct { color: #2e7d32; font-weight: 700; } .sk-log .l.sys { color: var(--md-on-surface-variant); font-style: italic; }
+.sk-log .l.close { color: #e65100; font-weight: 600; }
+.sk-log .l.chat { background: var(--md-primary-container); color: var(--md-on-primary-container); border-radius: 8px; padding: 1px 6px; }
+.sk-form { display: flex; gap: 6px; padding: 6px; background: var(--md-sc-high); }
+.sk-form input { flex: 1; min-width: 0; height: 44px; border-radius: var(--r-full); border: 1px solid var(--md-outline); background: var(--md-surface); padding: 0 16px; outline: none; }
+.sk-form input:focus { border-color: var(--md-primary); }
+.sk-form .btn { min-height: 44px; min-width: 44px; padding: 0 14px; }
+
+/* Breite Fenster / Querformat: Zeichenfläche links, Spieler + Chat rechts */
+@media (min-width: 860px), (orientation: landscape) and (min-width: 640px) {
+  .sk-main { flex-direction: row; align-items: stretch; gap: 12px; }
+  .sk-left { flex: 0 0 auto; }
+  .sk-stage, .sk-tools { width: min(calc(100vw - 340px), calc((100dvh - 170px) * 4 / 3), 920px); }
+  .sk-right { flex: 1; min-width: 220px; }
+  .sk-pl { flex-direction: column; flex-wrap: nowrap; max-height: 34%; overflow-y: auto; }
+  .sk-chat { min-height: 0; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .sk-stage, .sk-tools { width: min(calc(100vw - 300px), calc((100dvh - 130px) * 4 / 3)); }
+  .sk-sw { grid-template-columns: repeat(16, 1fr); }
+  .sk-tl button { height: 34px; min-width: 34px; }
+}

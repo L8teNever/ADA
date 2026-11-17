@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::games::{self, Game, GameInfo, GameKind, PlayerId};
+use crate::games::{self, Event, Game, GameInfo, GameKind, PlayerId};
 
 pub type Tx = UnboundedSender<String>;
 
@@ -128,6 +128,19 @@ fn broadcast(room: &Room) {
     for p in &room.players {
         if let Some(tx) = &p.tx {
             let _ = tx.send(state_for(room, p.id).to_string());
+        }
+    }
+}
+
+fn send_events(room: &Room, events: Vec<Event>) {
+    for e in events {
+        let text = json!({"type": "event", "data": e.data}).to_string();
+        for p in &room.players {
+            if let Some(tx) = &p.tx {
+                if e.to.is_empty() || e.to.contains(&p.id) {
+                    let _ = tx.send(text.clone());
+                }
+            }
         }
     }
 }
@@ -322,6 +335,8 @@ impl Hub {
         let Some(room) = rooms.get_mut(token) else { return };
         room.touched = now();
         let is_host = room.host == Some(pid);
+        let mut quiet = false;
+        let mut events: Vec<Event> = Vec::new();
 
         let result: Result<(), String> = match msg {
             ClientMsg::Start => {
@@ -343,7 +358,10 @@ impl Hub {
                 }
             }
             ClientMsg::Action { action } => match room.game.as_mut() {
-                Some(g) => g.apply(pid, &action),
+                Some(g) => g.apply(pid, &action).map(|_| {
+                    quiet = !g.needs_state();
+                    events = g.drain_events();
+                }),
                 None => Err("Es läuft kein Spiel".into()),
             },
             ClientMsg::Lobby => {
@@ -381,8 +399,30 @@ impl Hub {
         };
 
         match result {
-            Ok(()) => broadcast(room),
+            Ok(()) => {
+                if !quiet {
+                    broadcast(room);
+                }
+                send_events(room, events);
+            }
             Err(message) => send_to(room, pid, json!({"type": "error", "message": message})),
+        }
+    }
+
+    /// Zeitsteuerung laufender Spiele (z. B. Zeichnen & Raten).
+    pub fn tick(&self) {
+        let mut rooms = self.rooms.lock().unwrap();
+        for room in rooms.values_mut() {
+            if room.players.iter().all(|p| p.tx.is_none()) {
+                continue;
+            }
+            let Some(g) = room.game.as_mut() else { continue };
+            let changed = g.tick();
+            let events = g.drain_events();
+            if changed {
+                broadcast(room);
+            }
+            send_events(room, events);
         }
     }
 }

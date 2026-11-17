@@ -88,3 +88,14 @@ Hypotheken (10 % Aufschlag beim Auslösen), Handel (Geld, Grundstücke, Freikart
 Gefängnis (Pasch, 50 € oder Freikarte, nach 3 Versuchen Zahlung), Steuern, Schulden, Bankrott und Aufgeben.
 Wer nicht mehr überbieten kann, scheidet automatisch aus der Auktion aus. Der letzte Spieler gewinnt.
 Hausregeln: „Frei Parken" zahlt nichts aus, Miete in der Auktion/Schuldenphase wird sofort verrechnet.
+
+## Skribbl (Zeichnen & Raten)
+
+2–12 Spieler. Pro Zug wählt der Zeichner eines von 3 Wörtern (15 s), zeichnet 80 s lang (Pinsel, Radierer, Füllen, Rückgängig,
+16 Farben, 4 Dicken) und alle anderen tippen im Chat. Je schneller richtig geraten, desto mehr Punkte; der Zeichner bekommt den
+Durchschnitt. Buchstaben-Hinweise erscheinen nach 35 %, 60 % und 80 % der Zeit. „Fast richtig" wird nur dem Rater gezeigt, wer das
+Wort kennt, chattet nur mit anderen Wissenden. 3 Runden (jeder zeichnet pro Runde einmal). Optionen `rounds` und `time` beim
+Erstellen des Raums (API: `POST /api/rooms` mit `options`).
+
+Technik: Das Spiel-Framework hat dafür `tick()` (Zeit), `drain_events()` (leichte Nachrichten ohne vollen Zustand) und
+`needs_state()`; Striche laufen als Events, der volle Zustand enthält alle Striche für späte Mitspieler.

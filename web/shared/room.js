@@ -45,6 +45,7 @@
       ws.onmessage = (ev) => {
         let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
         if (m.type === 'state') { state = m; render(); }
+        else if (m.type === 'event') { if (gameMod && gameMod.event) gameMod.event(m.data); }
         else if (m.type === 'error') {
           if (m.fatal) { fatal = m.message; closed = true; render(); }
           else toast(m.message);
@@ -153,13 +154,19 @@
         return;
       }
       if (!gameMod) return;
-      root.innerHTML = `${banner}<div class="game-shell fade-in">
-        <div class="row" style="justify-content:space-between">
-          <div class="title">${esc(room.game.name)}</div>
-          ${isHost ? `<button class="btn text" data-act="end">${room.over ? 'Zurück zur Lobby' : 'Runde beenden'}</button>` : ''}
-        </div><div class="game-root"></div></div>`;
-      const end = root.querySelector('[data-act=end]'); if (end) end.onclick = () => send({ type: 'lobby' });
-      gameMod.render(root.querySelector('.game-root'), state.game, {
+      // Der Spielbereich bleibt zwischen Zustandsupdates bestehen (wichtig z. B. für Zeichenflächen).
+      let shell = root.querySelector('.game-shell');
+      if (!shell || shell.dataset.game !== room.game.id) {
+        root.innerHTML = `<div class="bn"></div><div class="game-shell fade-in" data-game="${esc(room.game.id)}"><div class="row gs-head"></div><div class="game-root"></div></div>`;
+        shell = root.querySelector('.game-shell');
+      }
+      root.querySelector('.bn').innerHTML = banner;
+      const head = shell.querySelector('.gs-head');
+      head.innerHTML = `<div class="title">${esc(room.game.name)}</div>
+        ${isHost ? `<button class="btn text" data-act="end">${room.over ? 'Zurück zur Lobby' : 'Runde beenden'}</button>` : ''}`;
+      head.style.justifyContent = 'space-between';
+      const end = head.querySelector('[data-act=end]'); if (end) end.onclick = () => send({ type: 'lobby' });
+      gameMod.render(shell.querySelector('.game-root'), state.game, {
         you, room, isHost, players: playersMap(),
         send: (action) => send({ type: 'action', action }),
         toLobby: () => send({ type: 'lobby' }),

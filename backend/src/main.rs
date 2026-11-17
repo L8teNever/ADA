@@ -138,6 +138,15 @@ async fn main() {
         }
     });
 
+    let ticker = st.hub.clone();
+    tokio::spawn(async move {
+        let mut iv = tokio::time::interval(Duration::from_millis(500));
+        loop {
+            iv.tick().await;
+            ticker.tick();
+        }
+    });
+
     let dispatch_state = Dispatch {
         play_hosts: cfg.play_hosts.clone(),
         portal: portal_router(st.clone()),
