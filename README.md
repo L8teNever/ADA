@@ -60,3 +60,16 @@ Lobby, Einladungslink, Gäste, Reconnect und Host-Steuerung kommen automatisch.
 2–10 Spieler, 7 Karten. Farbe oder Zahl/Symbol passend ablegen, Joker immer. Aussetzen, Richtungswechsel
 (zu zweit = Aussetzen), +2, +4 (Gegner zieht und setzt aus). Gezogene Karte darf sofort gespielt werden,
 sonst passen. Wer zuerst keine Karten hat, gewinnt. Kein Stapeln von +2/+4.
+
+## Skyjo-Regeln
+
+2–8 Spieler, je 12 verdeckte Karten im 4×3-Raster, zu Beginn decken alle 2 auf (wer die höchste Summe hat, beginnt).
+Im Zug: Karte vom Stapel ziehen und eine Rasterkarte ersetzen **oder** abwerfen und eine verdeckte aufdecken –
+oder die oberste Ablagekarte nehmen und eine Rasterkarte ersetzen. Drei gleiche Karten in einer Spalte fliegen raus.
+Wer alles aufgedeckt hat, löst die letzte Runde aus; hat er dann nicht die niedrigste Punktzahl, zählt seine doppelt.
+Das Spiel endet, sobald jemand 100 Punkte erreicht – wenige Punkte gewinnen.
+
+## Darstellung
+
+Alle Spielflächen skalieren mit Breite **und** Höhe (`dvh`), Karten brechen um statt aus dem Bild zu laufen,
+im Querformat auf dem Handy gibt es ein eigenes zweispaltiges Layout.

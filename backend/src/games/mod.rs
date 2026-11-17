@@ -9,6 +9,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
+pub mod skyjo;
 pub mod uno;
 
 pub type PlayerId = u32;
@@ -42,5 +43,5 @@ pub trait Game: Send {
 
 /// Alle verfügbaren Spiele.
 pub fn registry() -> Vec<Box<dyn GameKind>> {
-    vec![Box::new(uno::UnoKind)]
+    vec![Box::new(uno::UnoKind), Box::new(skyjo::SkyjoKind)]
 }

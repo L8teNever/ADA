@@ -3,6 +3,28 @@
   const { esc, initial, icon } = Ada;
   const COLOR_NAME = { red: 'Rot', yellow: 'Gelb', green: 'Grün', blue: 'Blau' };
   let pending = null; // Wild-Karte, bei der noch die Farbe gewählt wird
+  let mounted = null;
+
+  /** Kartenbreite so wählen, dass die ganze Hand ohne Scrollen sichtbar ist (umbrechen statt abschneiden). */
+  function fitHand(el) {
+    const hand = el.querySelector('.uno-hand');
+    if (!hand) return;
+    const n = hand.children.length;
+    if (!n) return;
+    const W = hand.clientWidth || el.clientWidth;
+    const gap = 6;
+    const maxW = Math.max(40, Math.min(86, window.innerHeight * 0.13));
+    const minW = 46;
+    let w = minW;
+    for (let rows = 1; rows <= 6; rows++) {
+      const per = Math.ceil(n / rows);
+      const cand = Math.min(maxW, (W - (per - 1) * gap) / per);
+      if (cand >= 56 || rows === 6) { w = Math.max(32, cand); break; }
+      w = cand;
+    }
+    hand.style.setProperty('--hw', Math.floor(w) + 'px');
+  }
+  window.addEventListener('resize', () => mounted && mounted.isConnected && fitHand(mounted));
 
   function label(kind) {
     if (kind <= 9) return String(kind);
@@ -78,6 +100,7 @@
         </div></dialog>
       </div>`;
 
+      mounted = el; fitHand(el);
       const dlg = el.querySelector('dialog.colors');
       if (pending != null && myTurn) dlg.showModal();
       dlg.addEventListener('cancel', () => { pending = null; });

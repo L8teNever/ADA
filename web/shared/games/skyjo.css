@@ -1,0 +1,56 @@
+/* Skyjo – alles skaliert mit Breite UND Höhe des Bildschirms */
+.sj { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0;
+  --w: clamp(38px, min(20vw, 11dvh), 96px);   /* eigene Karten */
+  --mw: clamp(15px, min(5.2vw, 3.4dvh), 28px); /* Karten der Gegner */
+}
+.sj-opps { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--mw) * 4 + 30px), 1fr)); gap: 8px; }
+.sj-opp { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: var(--r-md); background: var(--md-sc-high); transition: background .3s, transform .3s var(--spring); }
+.sj-opp.turn { background: var(--md-primary); color: var(--md-on-primary); transform: scale(1.03); }
+.sj-opp .nm { font-weight: 700; font-size: .8rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sj-opp .pts { font-size: .72rem; opacity: .85; }
+
+.sj-grid { display: grid; grid-template-columns: repeat(4, var(--w)); gap: calc(var(--w) * .1); justify-content: center; }
+.sj-grid.mini { --w: var(--mw); gap: 2px; }
+.sj-card {
+  width: var(--w); aspect-ratio: 5 / 7; border-radius: calc(var(--w) * .14); border: 0; padding: 0; position: relative;
+  display: grid; place-items: center; font-weight: 800; font-size: calc(var(--w) * .46); color: #fff; user-select: none;
+  box-shadow: 0 1px 4px var(--md-shadow), inset 0 0 0 calc(var(--w) * .04) rgba(255,255,255,.85); cursor: default;
+  transition: transform .3s var(--spring), box-shadow .2s, opacity .3s;
+}
+.sj-card span { text-shadow: 0 1px 0 rgba(0,0,0,.3); }
+.sj-card.back { background: repeating-linear-gradient(45deg, #5b3fa8, #5b3fa8 6px, #6c4fc0 6px, #6c4fc0 12px); }
+.sj-card.v-neg { background: #1d3f8f; } .sj-card.v-zero { background: #4aa3df; }
+.sj-card.v-low { background: #3d9a50; } .sj-card.v-mid { background: #e7b416; color: #3d2f00; }
+.sj-card.v-high { background: #d8402f; }
+.sj-card.v-mid span { text-shadow: none; }
+.sj-card.gone { visibility: hidden; }
+.sj-card.empty { background: transparent; box-shadow: inset 0 0 0 2px var(--md-outline-variant); }
+.sj-grid.mini .sj-card { font-size: calc(var(--w) * .5); box-shadow: none; }
+button.sj-card.pick { cursor: pointer; box-shadow: 0 0 0 3px var(--md-primary), 0 4px 10px var(--md-shadow); transform: translateY(-2px); }
+button.sj-card.pick:active { transform: scale(.93); }
+
+.sj-piles { display: flex; align-items: flex-end; justify-content: center; gap: clamp(12px, 4vw, 32px); padding: 8px; border-radius: var(--r-xl); background: var(--md-sc-low); }
+.sj-pile { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sj-pile .sj-card { --w: clamp(38px, min(15vw, 9dvh), 76px); }
+.sj-pile .cap { font-size: .72rem; font-weight: 600; color: var(--md-on-surface-variant); }
+.sj-status { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sj-log { font-size: .8rem; color: var(--md-on-surface-variant); text-align: center; min-height: 1.3em; }
+.sj-me { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.sj-me .label { color: var(--md-on-surface-variant); }
+.sj-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.sj-actions .btn { min-height: 40px; padding: 0 16px; }
+
+.sj-result { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--r-xl); background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+.sj-result table { width: 100%; border-collapse: collapse; }
+.sj-result th { text-align: left; font-size: .75rem; opacity: .8; }
+.sj-result td, .sj-result th { padding: 4px 6px; }
+.sj-result td.n, .sj-result th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.sj-result tr.me td { font-weight: 800; }
+
+/* Querformat auf dem Handy: links dein Raster, rechts der Rest */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sj { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; gap: 6px 14px; --w: clamp(30px, 17dvh, 64px); --mw: clamp(12px, 4.5dvh, 20px); }
+  .sj-opps { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(calc(var(--mw) * 4 + 24px), 1fr)); }
+  .sj-me { grid-column: 1; grid-row: 2; }
+  .sj-side { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+}

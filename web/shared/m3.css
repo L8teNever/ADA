@@ -204,3 +204,16 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 @media (min-width: 840px) { .room-wrap.lobby { grid-template-columns: 1fr 1fr; align-items: start; } }
 .center-page { min-height: calc(100dvh - 120px); display: grid; place-items: center; }
 .center-page .card { width: min(100%, 460px); }
+
+/* ---------- Spiel-Layout: nutzt die ganze Höhe, nichts läuft aus dem Bild ---------- */
+.game-shell { display: flex; flex-direction: column; gap: 8px; min-height: calc(100dvh - 64px - 16px); }
+.game-shell > .row { flex: none; min-height: 40px; }
+.game-root { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+body.in-room main { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+@media (max-height: 520px) {
+  .top-bar { min-height: 48px; padding-top: 4px; padding-bottom: 4px; }
+  .logo { width: 32px; height: 32px; }
+  .game-shell { min-height: calc(100dvh - 48px - 8px); }
+  .display { font-size: 1.75rem; }
+}
+@media (max-width: 380px) { .btn { padding: 0 18px; } .card { padding: 16px; } .card.hero { padding: 20px; } }
