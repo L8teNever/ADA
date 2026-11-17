@@ -211,6 +211,7 @@ impl GameKind for MonopolyKind {
             cur: 0,
             dice: (0, 0),
             doubles: 0,
+            rolls: 0,
             extra: false,
             buy: 0,
             auction: None,
@@ -298,6 +299,7 @@ pub struct Monopoly {
     cur: usize,
     dice: (u8, u8),
     doubles: u8,
+    rolls: u32,
     extra: bool,
     buy: usize,
     auction: Option<Auction>,
@@ -617,6 +619,7 @@ impl Monopoly {
         let mut rng = rand::thread_rng();
         let (d1, d2) = (rng.gen_range(1..=6u8), rng.gen_range(1..=6u8));
         self.dice = (d1, d2);
+        self.rolls += 1;
         let sum = (d1 + d2) as usize;
         let dbl = d1 == d2;
         self.log(i, format!("würfelt {d1} + {d2}"), None);
@@ -1033,6 +1036,7 @@ impl Game for Monopoly {
             "own": own,
             "dice": if self.dice.0 > 0 { json!([self.dice.0, self.dice.1]) } else { Value::Null },
             "extra": self.extra,
+            "rolls": self.rolls,
             "buy": if self.phase == Phase::Buy { json!(self.buy) } else { Value::Null },
             "auction": self.auction.as_ref().map(|a| json!({
                 "pos": a.pos, "bid": a.bid, "bidder": a.bidder.map(|b| self.pls[b].id),

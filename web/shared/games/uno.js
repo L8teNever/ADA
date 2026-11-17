@@ -4,6 +4,7 @@
   const COLOR_NAME = { red: 'Rot', yellow: 'Gelb', green: 'Grün', blue: 'Blau' };
   let pending = null; // Wild-Karte, bei der noch die Farbe gewählt wird
   let mounted = null;
+  let lastHw = 56;
 
   /** Kartenbreite so wählen, dass die ganze Hand ohne Scrollen sichtbar ist (umbrechen statt abschneiden). */
   function fitHand(el) {
@@ -22,7 +23,8 @@
       if (cand >= 56 || rows === 6) { w = Math.max(32, cand); break; }
       w = cand;
     }
-    hand.style.setProperty('--hw', Math.floor(w) + 'px');
+    lastHw = Math.floor(w);
+    if (hand.style.getPropertyValue('--hw') !== lastHw + 'px') hand.style.setProperty('--hw', lastHw + 'px');
   }
   window.addEventListener('resize', () => mounted && mounted.isConnected && fitHand(mounted));
 
@@ -76,7 +78,7 @@
 
       const last = v.log.length ? logText(v.log[v.log.length - 1], players) : '';
       const canDraw = myTurn && v.drew == null;
-      el.innerHTML = `<div class="uno">
+      Ada.patch(el, `<div class="uno">
         <div class="uno-opps">${opps}</div>
         <div class="uno-table">
           <div class="uno-pile">
@@ -94,16 +96,16 @@
         <div class="uno-actions">
           ${myTurn && v.drew != null ? `<button class="btn tonal" data-act="pass">Passen</button>` : ''}
         </div>
-        <div class="uno-hand">${hand}</div>
+        <div class="uno-hand" style="--hw: ${lastHw}px;">${hand}</div>
         <dialog class="colors"><div class="title">Welche Farbe?</div><div class="uno-colors">
           ${['red', 'yellow', 'green', 'blue'].map((c) => `<button data-color="${c}" style="background:${{ red: '#e53935', yellow: '#fdd835', green: '#43a047', blue: '#1e88e5' }[c]}" aria-label="${COLOR_NAME[c]}"></button>`).join('')}
         </div></dialog>
-      </div>`;
+      </div>`);
 
       mounted = el; fitHand(el);
       const dlg = el.querySelector('dialog.colors');
-      if (pending != null && myTurn) dlg.showModal();
-      dlg.addEventListener('cancel', () => { pending = null; });
+      if (pending != null && myTurn) { if (!dlg.open) dlg.showModal(); } else if (dlg.open) dlg.close();
+      dlg.oncancel = () => { pending = null; };
       el.querySelectorAll('[data-color]').forEach((b) => (b.onclick = () => {
         const id = pending; pending = null; dlg.close();
         if (id != null) ctx.send({ type: 'play', card: id, color: b.dataset.color });

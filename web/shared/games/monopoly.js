@@ -7,8 +7,7 @@
   const eur = (n) => `${n} €`;
 
   const ui = { tab: 'props', info: null, draft: null, bid: '' };
-  let pending = null;
-
+  
   function gridPos(pos) {
     if (pos <= 10) return { r: 11, c: 11 - pos, side: pos === 0 || pos === 10 ? 'b' : 'b' };
     if (pos <= 20) return { r: 11 - (pos - 10), c: 1, side: 'l' };
@@ -20,10 +19,6 @@
 
   Ada.games.monopoly = {
     render(el, v, ctx) {
-      const ae = document.activeElement;
-      if (ae && ae.tagName === 'INPUT' && el.contains(ae)) { pending = [el, v, ctx]; ae.onblur = () => { const p = pending; pending = null; if (p) Ada.games.monopoly.render(...p); }; return; }
-      pending = null;
-
       const you = ctx.you;
       const pl = v.players;
       const idxOf = (id) => pl.findIndex((p) => p.id === id);
@@ -59,7 +54,7 @@
       const sqName = (p) => esc(v.board[p].n);
       const mini = (p) => { const s = v.board[p]; const c = s.g != null ? GROUP_COL[s.g] : '#999'; return `<div class="mo-mini"><span class="band" style="background:${c}"></span><div><div class="t">${esc(s.n)}</div><div class="sub">${eur(s.p)}</div></div></div>`; };
       let center = '';
-      const dice = v.dice ? `<div class="row"><div class="mo-die">${v.dice[0]}</div><div class="mo-die">${v.dice[1]}</div></div>` : '';
+      const dice = v.dice ? `<div class="row"><div class="mo-die" data-k="a${v.rolls}">${v.dice[0]}</div><div class="mo-die" data-k="b${v.rolls}">${v.dice[1]}</div></div>` : '';
       const recentCard = v.card && v.log.slice(-4).some((e) => e.t.startsWith('zieht eine Karte'));
       const cardNote = recentCard ? `<div class="mo-note">${v.card.deck === 'chance' ? '❓ Ereignis' : '🎁 Gemeinschaft'}: ${esc(v.card.text)}</div>` : '';
       const offerLines = (o) => [o.money ? eur(o.money) : '', ...o.props.map((p) => sqName(p)), o.cards ? `${o.cards}× Freikarte` : ''].filter(Boolean).join(', ') || 'nichts';
@@ -179,12 +174,12 @@
           <div class="row"><button class="btn" data-act="trade_send">Angebot senden</button><button class="btn text" data-act="trade_close">Abbrechen</button></div></div></div>`;
       }
 
-      el.innerHTML = `<div class="mo">
+      Ada.patch(el, `<div class="mo">
         <div class="mo-top">${top}</div>
         <div class="mo-board">${squares}<div class="mo-center">${center}</div></div>
         <div class="mo-panel"><div class="mo-tabs">
           ${[['props', 'Grundstücke'], ['players', 'Spieler'], ['log', 'Protokoll']].map(([k, l]) => `<button class="${ui.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
-          <div class="mo-body">${tabBody}</div></div>${modal}</div>`;
+          <div class="mo-body">${tabBody}</div></div>${modal}</div>`);
 
       /* ---------- Ereignisse ---------- */
       const again = () => Ada.games.monopoly.render(el, v, ctx);

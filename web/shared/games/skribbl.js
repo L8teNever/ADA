@@ -175,8 +175,9 @@
 
   function renderChat(lines) {
     const log = S.root.querySelector('.sk-log');
-    log.innerHTML = lines.map((l) => lineHtml(l, nameOf)).join('');
-    log.scrollTop = log.scrollHeight;
+    const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+    Ada.patch(log, lines.map((l) => lineHtml(l, nameOf)).join(''));
+    if (atEnd) log.scrollTop = log.scrollHeight;
   }
 
   /* ---------- Zustand ---------- */
@@ -195,12 +196,14 @@
 
     // Wort-Zeile
     const wordEl = S.root.querySelector('.sk-word');
-    if (v.phase === 'choosing') wordEl.innerHTML = isDrawer ? 'Wähle ein Wort' : `${name(v.drawer)} wählt ein Wort…`;
+    let wh = '';
+    if (v.phase === 'choosing') wh = isDrawer ? 'Wähle ein Wort' : `${name(v.drawer)} wählt ein Wort…`;
     else if (v.phase === 'drawing') {
-      if (v.word) wordEl.innerHTML = `${esc(v.word)}<small>${isDrawer ? 'Zeichne das Wort!' : 'Du hast es erraten!'}</small>`;
-      else wordEl.innerHTML = `${v.hint.map(esc).join(' ')}<small>${name(v.drawer)} zeichnet · ${v.word_len} Buchstaben</small>`;
-    } else if (v.phase === 'turnend') wordEl.innerHTML = `Das Wort war<small style="font-size:1em;letter-spacing:.14em;color:inherit">${esc(v.word)}</small>`;
-    else wordEl.textContent = 'Spiel vorbei';
+      if (v.word) wh = `${esc(v.word)}<small>${isDrawer ? 'Zeichne das Wort!' : 'Du hast es erraten!'}</small>`;
+      else wh = `${v.hint.map(esc).join(' ')}<small>${name(v.drawer)} zeichnet · ${v.word_len} Buchstaben</small>`;
+    } else if (v.phase === 'turnend') wh = `Das Wort war<small style="font-size:1em;letter-spacing:.14em;color:inherit">${esc(v.word)}</small>`;
+    else wh = 'Spiel vorbei';
+    if (wordEl.dataset.h !== wh) { wordEl.innerHTML = wh; wordEl.dataset.h = wh; }
     S.root.querySelector('.sk-rd').textContent = `Runde ${v.round}/${v.rounds}`;
 
     // Overlay
@@ -218,14 +221,14 @@
       html = `<div class="big">🏆 ${sorted[0].id === you ? 'Du gewinnst!' : name(sorted[0].id) + ' gewinnt!'}</div><table>${sorted.map((s, i) => `<tr class="${s.id === you ? 'me' : ''}"><td>${medal[i] || i + 1 + '.'} ${name(s.id)}</td><td class="n">${s.score}</td></tr>`).join('')}</table>${ctx.isHost ? '<button class="btn" data-act="lobby">Zurück zur Lobby</button>' : ''}`;
     }
     ov.classList.toggle('on', !!html);
-    if (ov.dataset.h !== html) { ov.innerHTML = html; ov.dataset.h = html; }
+    Ada.patch(ov, html);
 
     S.root.querySelector('.sk-stage').classList.toggle('can-draw', canDraw());
     paintTools();
 
     // Spieler
-    S.root.querySelector('.sk-pl').innerHTML = sorted.map((s) => `<div class="sk-p ${s.id === v.drawer ? 'drawer' : ''} ${s.guessed ? 'ok' : ''}">
-      <span class="avatar">${esc(initial((ctx.players[s.id] || {}).name))}</span>${name(s.id)}${s.id === v.drawer && v.phase === 'drawing' ? ' ✏️' : ''}${s.guessed ? ' ✓' : ''}<b>${s.score}</b>${s.turn ? `<small>+${s.turn}</small>` : ''}</div>`).join('');
+    Ada.patch(S.root.querySelector('.sk-pl'), sorted.map((s) => `<div class="sk-p ${s.id === v.drawer ? 'drawer' : ''} ${s.guessed ? 'ok' : ''}">
+      <span class="avatar">${esc(initial((ctx.players[s.id] || {}).name))}</span>${name(s.id)}${s.id === v.drawer && v.phase === 'drawing' ? ' ✏️' : ''}${s.guessed ? ' ✓' : ''}<b>${s.score}</b>${s.turn ? `<small>+${s.turn}</small>` : ''}</div>`).join(''));
 
     const input = S.root.querySelector('.sk-form input');
     const knows = isDrawer || (v.scores.find((s) => s.id === you) || {}).guessed;

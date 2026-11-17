@@ -116,7 +116,7 @@
             <button class="icon-btn" data-act="copy" aria-label="Link kopieren">${icon('copy')}</button></div>
           <p class="muted">Jeder mit diesem Link kann mit einem Namen mitspielen.</p></div>` : '';
       const canStart = isHost && online >= min;
-      root.innerHTML = `${banner}
+      Ada.patch(root, `${banner}
         <div class="room-wrap lobby fade-in">
           <div class="stack">
             <div class="card hero">
@@ -136,7 +136,7 @@
               : `<p class="muted">Warte, bis der Host das Spiel startet…</p>`}
             <button class="btn text" data-act="leave">Raum verlassen</button>
           </div>
-        </div>`;
+        </div>`);
       const q = (s) => root.querySelector(s);
       const copyBtn = q('[data-act=copy]'); if (copyBtn) copyBtn.onclick = () => copy(o.shareLink);
       const startBtn = q('[data-act=start]'); if (startBtn) startBtn.onclick = () => send({ type: 'start' });
@@ -160,10 +160,10 @@
         root.innerHTML = `<div class="bn"></div><div class="game-shell fade-in" data-game="${esc(room.game.id)}"><div class="row gs-head"></div><div class="game-root"></div></div>`;
         shell = root.querySelector('.game-shell');
       }
-      root.querySelector('.bn').innerHTML = banner;
+      Ada.patch(root.querySelector('.bn'), banner);
       const head = shell.querySelector('.gs-head');
-      head.innerHTML = `<div class="title">${esc(room.game.name)}</div>
-        ${isHost ? `<button class="btn text" data-act="end">${room.over ? 'Zurück zur Lobby' : 'Runde beenden'}</button>` : ''}`;
+      Ada.patch(head, `<div class="title">${esc(room.game.name)}</div>
+        ${isHost ? `<button class="btn text" data-act="end">${room.over ? 'Zurück zur Lobby' : 'Runde beenden'}</button>` : ''}`);
       head.style.justifyContent = 'space-between';
       const end = head.querySelector('[data-act=end]'); if (end) end.onclick = () => send({ type: 'lobby' });
       gameMod.render(shell.querySelector('.game-root'), state.game, {

@@ -67,7 +67,7 @@
       let moves = '';
       for (let i = 0; i < v.moves.length; i += 2) moves += `<span><b>${i / 2 + 1}.</b> ${esc(v.moves[i])}${v.moves[i + 1] ? ' ' + esc(v.moves[i + 1]) : ''}</span>`;
 
-      el.innerHTML = `<div class="ch">
+      Ada.patch(el, `<div class="ch">
         <div class="ch-board-col">
           ${bar(opp)}
           <div class="ch-board-wrap"><div class="ch-board">${cells}</div>
@@ -79,7 +79,7 @@
           <div class="ch-status"><span class="chip ${myTurn ? 'ok' : ''}">${text}</span><div class="ch-actions">${actions}</div></div>
           <div class="ch-moves">${moves}</div>
         </div>
-      </div>`;
+      </div>`);
 
       const rerender = () => Ada.games.chess.render(el, v, ctx);
       el.querySelectorAll('[data-sq]').forEach((b) => (b.onclick = () => {

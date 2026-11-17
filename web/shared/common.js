@@ -26,6 +26,47 @@
   Ada.icon = (name) =>
     `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name] || ''}"${EVENODD[name] ? ' fill-rule="evenodd"' : ''}/></svg>`;
 
+  /* DOM-Abgleich: ändert nur, was sich wirklich geändert hat. Unveränderte Knoten bleiben bestehen
+   * (Animationen, Scroll-Position, Fokus, Eingaben). Mit data-k="…" lässt sich ein Element gezielt
+   * neu einsetzen (z. B. damit eine Würfel-Animation bei neuem Wurf erneut abspielt). */
+  const HANDLERS = ['onclick', 'oninput', 'onchange', 'onsubmit', 'onblur', 'oncancel'];
+  function morphEl(f, t) {
+    for (const a of [...f.attributes]) {
+      if (!t.hasAttribute(a.name) && !(f.tagName === 'DIALOG' && a.name === 'open')) f.removeAttribute(a.name);
+    }
+    const typing = f === document.activeElement;
+    for (const a of t.attributes) {
+      if (f.tagName === 'DIALOG' && a.name === 'open') continue;
+      if (typing && a.name === 'value') continue;
+      if (f.getAttribute(a.name) !== a.value) f.setAttribute(a.name, a.value);
+    }
+    for (const h of HANDLERS) if (f[h]) f[h] = null; // die Spiele binden ihre Handler nach dem Abgleich neu
+    if (f.tagName === 'INPUT') {
+      if (f.type === 'checkbox' || f.type === 'radio') f.checked = t.hasAttribute('checked');
+      return;
+    }
+    if (f.tagName === 'TEXTAREA' || f.tagName === 'CANVAS') return;
+    morphChildren(f, t);
+  }
+  function morphChildren(from, to) {
+    const t = to.childNodes;
+    for (let i = 0; i < t.length; i++) {
+      const tn = t[i], fn = from.childNodes[i];
+      if (!fn) { from.appendChild(tn.cloneNode(true)); continue; }
+      if (fn.nodeType !== tn.nodeType || (tn.nodeType === 1 && (fn.tagName !== tn.tagName || fn.getAttribute('data-k') !== tn.getAttribute('data-k')))) {
+        from.replaceChild(tn.cloneNode(true), fn); continue;
+      }
+      if (tn.nodeType === 1) morphEl(fn, tn);
+      else if (fn.nodeValue !== tn.nodeValue) fn.nodeValue = tn.nodeValue;
+    }
+    while (from.childNodes.length > t.length) from.removeChild(from.lastChild);
+  }
+  Ada.patch = (el, html) => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    morphChildren(el, tpl.content);
+  };
+
   Ada.initial = (name) => (String(name || '?').trim()[0] || '?').toUpperCase();
 
   Ada.api = async (path, opts = {}) => {

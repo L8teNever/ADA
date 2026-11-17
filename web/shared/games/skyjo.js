@@ -90,7 +90,7 @@
           ? `<button class="btn tonal" data-act="place-mode">Doch ersetzen</button>`
           : `<button class="btn tonal" data-act="dflip-mode">Abwerfen &amp; aufdecken</button>`}</div>` : '';
 
-      el.innerHTML = `<div class="sj">
+      Ada.patch(el, `<div class="sj">
         <div class="sj-opps">${opps}</div>
         <div class="sj-side">
           <div class="sj-piles">
@@ -109,7 +109,7 @@
           <div class="sj-grid">${myGrid}</div>
         </div>
         ${result}
-      </div>`;
+      </div>`);
 
       const on = (sel, fn) => el.querySelectorAll(sel).forEach((b) => (b.onclick = () => fn(b)));
       on('[data-slot]', (b) => {
