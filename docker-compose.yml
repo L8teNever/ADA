@@ -1,0 +1,21 @@
+services:
+  ada:
+    build: .
+    image: ada:latest
+    container_name: ada
+    restart: unless-stopped
+    init: true
+    environment:
+      PORTAL_HOST: ${PORTAL_HOST:-ada.kulbarts.com}
+      PLAY_HOST: ${PLAY_HOST:-gameada.kulbarts.com}
+      PLAY_BASE_URL: ${PLAY_BASE_URL:-https://gameada.kulbarts.com}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ada-data:/data
+    # Nur lokal erreichbar – der Cloudflare Tunnel greift darauf zu.
+    # NIE direkt ins Internet öffnen (sonst könnte jemand den Zero-Trust-Header fälschen).
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  ada-data:
