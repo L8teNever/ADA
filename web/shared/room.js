@@ -16,10 +16,10 @@
     loaded[info.id] = new Promise((resolve, reject) => {
       if (info.css) {
         const l = document.createElement('link');
-        l.rel = 'stylesheet'; l.href = info.css; document.head.append(l);
+        l.rel = 'stylesheet'; l.href = info.css + '?v=20261117a'; document.head.append(l);
       }
       const s = document.createElement('script');
-      s.src = info.js; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
+      s.src = info.js + '?v=20261117a'; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
       document.head.append(s);
     });
     return loaded[info.id];
