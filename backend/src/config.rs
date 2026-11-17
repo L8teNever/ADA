@@ -7,9 +7,9 @@ pub struct Config {
     pub web_dir: PathBuf,
     /// Host des Portals (hinter Cloudflare Zero Trust), z. B. ada.kulbarts.com
     pub portal_host: String,
-    /// Host der öffentlichen Spieleseite, z. B. gameada.kulbarts.com
-    pub play_host: String,
-    /// Basis-URL für Einladungslinks, z. B. https://gameada.kulbarts.com
+    /// Hosts der öffentlichen Spieleseite (kommagetrennt möglich), z. B. game.kulbarts.com
+    pub play_hosts: Vec<String>,
+    /// Basis-URL für Einladungslinks, z. B. https://game.kulbarts.com
     pub play_base_url: String,
     /// Nur für lokale Entwicklung: tut so, als wäre diese Mail angemeldet.
     pub dev_email: Option<String>,
@@ -24,8 +24,14 @@ fn env(key: &str, default: &str) -> String {
 
 impl Config {
     pub fn from_env() -> Self {
-        let play_host = env("PLAY_HOST", "gameada.kulbarts.com").to_ascii_lowercase();
-        let play_base_url = env("PLAY_BASE_URL", &format!("https://{play_host}"))
+        let play_hosts: Vec<String> = env("PLAY_HOST", "game.kulbarts.com")
+            .to_ascii_lowercase()
+            .split(',')
+            .map(|h| h.trim().to_string())
+            .filter(|h| !h.is_empty())
+            .collect();
+        let first = play_hosts.first().cloned().unwrap_or_default();
+        let play_base_url = env("PLAY_BASE_URL", &format!("https://{first}"))
             .trim_end_matches('/')
             .to_string();
         Config {
@@ -33,7 +39,7 @@ impl Config {
             data_dir: PathBuf::from(env("DATA_DIR", "/data")),
             web_dir: PathBuf::from(env("WEB_DIR", "/app/web")),
             portal_host: env("PORTAL_HOST", "ada.kulbarts.com").to_ascii_lowercase(),
-            play_host,
+            play_hosts,
             play_base_url,
             dev_email: std::env::var("DEV_EMAIL")
                 .ok()

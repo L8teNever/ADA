@@ -8,13 +8,13 @@ Beide Adressen zeigen auf **denselben Container** (Port 8080). Das Backend erken
 | Hostname | Service |
 |---|---|
 | `ada.kulbarts.com` | `http://localhost:8080` (bzw. `http://ada:8080` im selben Docker-Netz) |
-| `gameada.kulbarts.com` | derselbe Service |
+| `game.kulbarts.com` | derselbe Service |
 
 ## 2. Zero Trust Access
 
 - **Nur** für `ada.kulbarts.com` eine Self-hosted Application mit Policy (erlaubte Mails/Gruppen) anlegen.
-- Für `gameada.kulbarts.com` **keine** Access-App – diese Seite ist öffentlich.
-  Zugang zu einem Spiel hat nur, wer den geheimen Link `https://gameada.kulbarts.com/<token>` kennt.
+- Für `game.kulbarts.com` **keine** Access-App – diese Seite ist öffentlich.
+  Zugang zu einem Spiel hat nur, wer den geheimen Link `https://game.kulbarts.com/<token>` kennt.
 
 ## 3. Wie der Login funktioniert
 
@@ -23,7 +23,7 @@ Das Backend legt beim ersten Besuch automatisch einen Account zur Mail an
 (`/data/users.json`, Name aus dem Mail-Anfang, im Profil änderbar).
 
 Sicherheit:
-- Der Header wird **nur** auf dem Portal-Host ausgewertet, nie auf `gameada…`.
+- Der Header wird **nur** auf dem Portal-Host ausgewertet, nie auf `game…`.
 - Der Port 8080 ist in `docker-compose.yml` nur an `127.0.0.1` gebunden. Der Container darf nicht
   an anderer Stelle direkt erreichbar sein, sonst ließe sich der Header fälschen.
 - WebSockets prüfen den `Origin` (Schutz vor fremden Webseiten).

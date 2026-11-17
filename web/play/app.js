@@ -1,4 +1,4 @@
-/* Öffentliche Spieleseite: gameada.kulbarts.com/<token> */
+/* Öffentliche Spieleseite: game.kulbarts.com/<token> */
 (function () {
   const { esc, icon, api } = Ada;
   const view = document.getElementById('view');

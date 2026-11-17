@@ -31,7 +31,7 @@ pub struct AppState {
 
 #[derive(Clone)]
 struct Dispatch {
-    play_host: String,
+    play_hosts: Vec<String>,
     portal: Router,
     play: Router,
 }
@@ -52,7 +52,7 @@ async fn dispatch(State(d): State<Dispatch>, req: Request) -> Response {
         .next()
         .unwrap_or("")
         .to_ascii_lowercase();
-    let router = if host == d.play_host { d.play.clone() } else { d.portal.clone() };
+    let router = if d.play_hosts.contains(&host) { d.play.clone() } else { d.portal.clone() };
     match router.oneshot(req).await {
         Ok(r) => r,
         Err(e) => match e {},
@@ -139,7 +139,7 @@ async fn main() {
     });
 
     let dispatch_state = Dispatch {
-        play_host: cfg.play_host.clone(),
+        play_hosts: cfg.play_hosts.clone(),
         portal: portal_router(st.clone()),
         play: play_router(st.clone()),
     };
@@ -162,7 +162,7 @@ async fn main() {
     tracing::info!(
         "ADA läuft auf {addr} (Portal: {}, Spiele: {})",
         cfg.portal_host,
-        cfg.play_host
+        cfg.play_hosts.join(", ")
     );
     let listener = tokio::net::TcpListener::bind(&addr).await.expect("Port belegt");
     axum::serve(listener, app).await.expect("Server beendet");

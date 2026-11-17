@@ -6,8 +6,8 @@ services:
     init: true
     environment:
       PORTAL_HOST: ${PORTAL_HOST:-ada.kulbarts.com}
-      PLAY_HOST: ${PLAY_HOST:-gameada.kulbarts.com}
-      PLAY_BASE_URL: ${PLAY_BASE_URL:-https://gameada.kulbarts.com}
+      PLAY_HOST: ${PLAY_HOST:-game.kulbarts.com}
+      PLAY_BASE_URL: ${PLAY_BASE_URL:-https://game.kulbarts.com}
       RUST_LOG: ${RUST_LOG:-info}
     volumes:
       - ada-data:/data
