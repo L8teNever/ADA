@@ -1,0 +1,48 @@
+/* Schach – Brett skaliert mit Breite UND Höhe */
+.ch { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0;
+  --bs: clamp(240px, min(100vw - 24px, 100dvh - 330px), 640px); }
+.ch-board-wrap { position: relative; width: var(--bs); }
+.ch-board { width: var(--bs); height: var(--bs); display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+  border-radius: var(--r-md); overflow: hidden; box-shadow: 0 2px 10px var(--md-shadow); touch-action: manipulation; }
+.ch-sq { position: relative; display: grid; place-items: center; border: 0; padding: 0; margin: 0; cursor: default;
+  font-size: calc(var(--bs) / 8 * .8); line-height: 1; background: var(--md-primary-container); user-select: none; }
+.ch-sq.dark { background: color-mix(in srgb, var(--md-primary) 58%, var(--md-primary-container)); }
+.ch-sq.last::after { content: ""; position: absolute; inset: 0; background: var(--md-tertiary); opacity: .35; }
+.ch-sq.sel::after { content: ""; position: absolute; inset: 0; background: var(--md-tertiary); opacity: .6; }
+.ch-sq.check { background: radial-gradient(circle, #e53935 20%, transparent 75%), var(--md-primary-container); }
+.ch-sq.check.dark { background: radial-gradient(circle, #e53935 20%, transparent 75%), color-mix(in srgb, var(--md-primary) 58%, var(--md-primary-container)); }
+.ch-sq.move::before { content: ""; position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.28); z-index: 2; }
+.ch-sq.move.cap::before { width: 92%; height: 92%; background: transparent; box-shadow: inset 0 0 0 calc(var(--bs) / 8 * .09) rgba(0,0,0,.28); }
+.ch-sq.mine { cursor: pointer; }
+.ch-sq .pc { position: relative; z-index: 1; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", "Apple Symbols", sans-serif; transition: transform .2s var(--spring); }
+.ch-sq.sel .pc { transform: scale(1.12); }
+.pc.w { color: #fff; text-shadow: -1px 0 #222, 1px 0 #222, 0 -1px #222, 0 1px #222, 0 2px 2px rgba(0,0,0,.3); }
+.pc.b { color: #1c1b1f; text-shadow: 0 0 2px rgba(255,255,255,.35); }
+.ch-sq .co { position: absolute; font-size: calc(var(--bs) / 8 * .2); font-weight: 700; opacity: .65; z-index: 1; pointer-events: none; }
+.ch-sq .co.r { top: 2px; left: 3px; } .ch-sq .co.f { bottom: 1px; right: 3px; }
+
+.ch-bar { width: var(--bs); display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: var(--r-full); }
+.ch-bar.turn { background: var(--md-secondary-container); }
+.ch-bar .avatar { width: 34px; height: 34px; }
+.ch-bar .nm { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-bar .caps { margin-left: auto; font-size: 1rem; letter-spacing: -2px; color: var(--md-on-surface-variant); white-space: nowrap; overflow: hidden; }
+.ch-bar .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 2px var(--md-outline); }
+.ch-bar .dot.w { background: #fff; } .ch-bar .dot.b { background: #1c1b1f; }
+.ch-status { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; width: var(--bs); }
+.ch-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.ch-actions .btn { min-height: 40px; padding: 0 16px; }
+.ch-moves { width: var(--bs); max-height: 64px; overflow-y: auto; font-size: .85rem; color: var(--md-on-surface-variant); display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.ch-moves b { color: var(--md-on-surface); font-weight: 600; }
+.ch-promo { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: rgba(0,0,0,.45); border-radius: var(--r-md); }
+.ch-promo .box { display: flex; gap: 8px; padding: 10px; border-radius: var(--r-lg); background: var(--md-sc-high); }
+.ch-promo button { width: calc(var(--bs) / 8 * 1.2); height: calc(var(--bs) / 8 * 1.2); border: 0; border-radius: var(--r-md); background: var(--md-sc-highest); font-size: calc(var(--bs) / 8 * .9); cursor: pointer; }
+.ch-side { display: contents; }
+
+/* Querformat auf dem Handy: Brett links, Infos rechts */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ch { display: grid; grid-template-columns: auto minmax(180px, 1fr); align-items: center; gap: 8px 16px; --bs: clamp(200px, 100dvh - 76px, 520px); }
+  .ch-board-col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .ch-side { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+  .ch-bar, .ch-status, .ch-moves { width: 100%; }
+  .ch-board-col .ch-bar { width: var(--bs); }
+}

@@ -73,3 +73,9 @@ Das Spiel endet, sobald jemand 100 Punkte erreicht – wenige Punkte gewinnen.
 
 Alle Spielflächen skalieren mit Breite **und** Höhe (`dvh`), Karten brechen um statt aus dem Bild zu laufen,
 im Querformat auf dem Handy gibt es ein eigenes zweispaltiges Layout.
+
+## Schach
+
+2 Spieler, Farben werden zufällig verteilt. Vollständige Regeln (Rochade, en passant, Umwandlung, Schach/Matt/Patt,
+50-Züge-Regel, dreifache Wiederholung, zu wenig Material), Aufgeben und Remis anbieten/annehmen.
+Die Zuggenerierung ist mit den Standard-Perft-Tests abgesichert (`cargo test`).
