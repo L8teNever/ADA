@@ -84,9 +84,9 @@ Die Zuggenerierung ist mit den Standard-Perft-Tests abgesichert (`cargo test`).
 
 2–6 Spieler, 1500 € Startgeld, eigenes Brett (40 Felder) mit allen Regeln: Grundstücke, Bahnhöfe und Werke kaufen oder
 versteigern, Miete (doppelt bei ganzer Farbgruppe), Häuser und Hotels (gleichmäßig bauen, begrenzter Vorrat),
-Hypotheken (10 % Aufschlag beim Auslösen), Handel (Geld, Grundstücke, Freikarten), Ereignis- und Gemeinschaftskarten,
+Hypotheken (10 % Aufschlag beim Auslösen), Handel (Geld, Grundstücke, Freikarten; jederzeit und mit jedem, mit Annehmen, Ablehnen und Gegenangebot – beliebig oft hin und her; übernommene Hypotheken kosten 10 % Gebühr), Ereignis- und Gemeinschaftskarten,
 Gefängnis (Pasch, 50 € oder Freikarte, nach 3 Versuchen Zahlung), Steuern, Schulden, Bankrott und Aufgeben.
-Wer nicht mehr überbieten kann, scheidet automatisch aus der Auktion aus. Der letzte Spieler gewinnt.
+Hypotheken und Hausverkäufe gehen auch beim Kaufen und in der Auktion (jeder darf sich Geld zum Mitbieten beschaffen). Wer auch mit Hypotheken nicht mehr überbieten kann, scheidet automatisch aus der Auktion aus. Der letzte Spieler gewinnt.
 Hausregeln: „Frei Parken" zahlt nichts aus, Miete in der Auktion/Schuldenphase wird sofort verrechnet.
 
 ## Skribbl (Zeichnen & Raten)

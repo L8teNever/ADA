@@ -194,6 +194,12 @@ impl GameKind for MonopolyKind {
         if players.len() < 2 || players.len() > 6 {
             return Err("Monopoly braucht 2 bis 6 Spieler".into());
         }
+        Ok(Box::new(Monopoly::new(players)))
+    }
+}
+
+impl Monopoly {
+    fn new(players: &[PlayerId]) -> Monopoly {
         let mut rng = rand::thread_rng();
         let mut order = players.to_vec();
         order.shuffle(&mut rng);
@@ -201,7 +207,7 @@ impl GameKind for MonopolyKind {
         let mut chest: Vec<usize> = (0..16).collect();
         chance.shuffle(&mut rng);
         chest.shuffle(&mut rng);
-        Ok(Box::new(Monopoly {
+        Monopoly {
             pls: order
                 .iter()
                 .map(|id| Pl { id: *id, money: START_MONEY, pos: 0, in_jail: false, jail_fails: 0, cards: 0, out: false })
@@ -216,7 +222,8 @@ impl GameKind for MonopolyKind {
             buy: 0,
             auction: None,
             debt: None,
-            trade: None,
+            trades: Vec::new(),
+            next_trade: 1,
             chance: chance.into(),
             chest: chest.into(),
             houses_left: 32,
@@ -224,7 +231,7 @@ impl GameKind for MonopolyKind {
             log: Vec::new(),
             last_card: None,
             winner: None,
-        }))
+        }
     }
 }
 
@@ -285,11 +292,18 @@ struct Offer {
     cards: u8,
 }
 
+#[derive(Clone)]
 struct Trade {
+    id: u32,
+    /// Wer das aktuelle Angebot gemacht hat
     from: usize,
+    /// Wer antworten muss
     to: usize,
+    /// Das gibt `from` ab
     give: Offer,
+    /// Das möchte `from` bekommen
     take: Offer,
+    rounds: u32,
 }
 
 pub struct Monopoly {
@@ -304,7 +318,8 @@ pub struct Monopoly {
     buy: usize,
     auction: Option<Auction>,
     debt: Option<Debt>,
-    trade: Option<Trade>,
+    trades: Vec<Trade>,
+    next_trade: u32,
     chance: VecDeque<usize>,
     chest: VecDeque<usize>,
     houses_left: i32,
@@ -586,7 +601,7 @@ impl Monopoly {
         self.pls[i].cards = 0;
         self.pls[i].out = true;
         self.debt = None;
-        self.trade = None;
+        self.trades.retain(|t| t.from != i && t.to != i);
         let t = if creditor.is_some() { "ist bankrott, Besitz geht an" } else { "ist bankrott" };
         self.log(i, t.into(), creditor);
         if !self.check_over() {
@@ -594,11 +609,25 @@ impl Monopoly {
         }
     }
 
+    /// Bargeld plus alles, was sich durch Hypotheken und Hausverkäufe flüssig machen ließe.
+    fn liquid(&self, j: usize) -> i32 {
+        let mut total = self.pls[j].money;
+        for p in 0..40 {
+            if self.own[p].owner == Some(j) {
+                if !self.own[p].mort {
+                    total += BOARD[p].price / 2;
+                }
+                total += self.own[p].houses as i32 * BOARD[p].house / 2;
+            }
+        }
+        total
+    }
+
     fn auction_check(&mut self) {
         let Some(a) = &self.auction else { return };
         // Wer das Gebot nicht mehr überbieten kann, scheidet automatisch aus
         let pending = (0..self.pls.len())
-            .filter(|j| !self.pls[*j].out && !a.passed[*j] && Some(*j) != a.bidder && self.pls[*j].money > a.bid)
+            .filter(|j| !self.pls[*j].out && !a.passed[*j] && Some(*j) != a.bidder && self.liquid(*j) > a.bid)
             .count();
         if pending > 0 {
             return;
@@ -692,157 +721,118 @@ impl Monopoly {
         }
         Ok(())
     }
-}
 
-impl Game for Monopoly {
-    fn apply(&mut self, p: PlayerId, action: &Value) -> Result<(), String> {
-        let i = self.pls.iter().position(|x| x.id == p).ok_or("Du bist nicht in diesem Spiel")?;
-        if self.pls[i].out {
-            return Err("Du bist ausgeschieden".into());
+    fn trade_action(&mut self, i: usize, kind: &str, action: &Value) -> Result<(), String> {
+        let offers = |a: &Value| (parse_offer(a.get("give").unwrap_or(&Value::Null)), parse_offer(a.get("take").unwrap_or(&Value::Null)));
+        if kind == "trade_propose" {
+            let to_id = action.get("to").and_then(Value::as_u64).ok_or("Partner fehlt")? as u32;
+            let to = self.pls.iter().position(|x| x.id == to_id).ok_or("Unbekannter Mitspieler")?;
+            if to == i || self.pls[to].out {
+                return Err("Mit diesem Spieler kannst du nicht handeln".into());
+            }
+            let (give, take) = offers(action);
+            if give.money == 0 && give.props.is_empty() && give.cards == 0 && take.money == 0 && take.props.is_empty() && take.cards == 0 {
+                return Err("Das Angebot ist leer".into());
+            }
+            if self.trades.iter().any(|t| (t.from == i && t.to == to) || (t.from == to && t.to == i)) {
+                return Err("Mit diesem Spieler ist schon ein Angebot offen – beantworte oder ändere es".into());
+            }
+            if self.trades.iter().filter(|t| t.from == i).count() >= 4 {
+                return Err("Du hast schon zu viele offene Angebote".into());
+            }
+            self.valid_offer(i, &give)?;
+            self.valid_offer(to, &take)?;
+            let id = self.next_trade;
+            self.next_trade += 1;
+            self.trades.push(Trade { id, from: i, to, give, take, rounds: 0 });
+            self.log(i, "macht ein Handelsangebot an".into(), Some(to));
+            return Ok(());
         }
-        if self.phase == Phase::Over {
-            return Err("Das Spiel ist vorbei".into());
-        }
-        let kind = action.get("type").and_then(Value::as_str).unwrap_or("");
-        let pos_arg = || -> Result<usize, String> {
-            let p = action.get("pos").and_then(Value::as_u64).ok_or("Feld fehlt")? as usize;
-            if p < 40 { Ok(p) } else { Err("Ungültiges Feld".into()) }
-        };
-
-        // ---- Aktionen, die nicht nur der aktive Spieler ausführen darf ----
+        let id = action.get("id").and_then(Value::as_u64).ok_or("Angebot fehlt")? as u32;
+        let pos = self.trades.iter().position(|t| t.id == id).ok_or("Dieses Angebot gibt es nicht mehr")?;
+        let (from, to) = (self.trades[pos].from, self.trades[pos].to);
         match kind {
-            "bid" | "pass" => {
-                if self.phase != Phase::Auction {
-                    return Err("Gerade läuft keine Auktion".into());
+            "trade_cancel" => {
+                if from != i {
+                    return Err("Nur wer das Angebot gemacht hat, kann es zurückziehen".into());
                 }
-                let a = self.auction.as_mut().ok_or("Keine Auktion")?;
-                if a.passed[i] {
-                    return Err("Du hast schon gepasst".into());
-                }
-                if kind == "pass" {
-                    a.passed[i] = true;
-                    self.log(i, "passt".into(), None);
-                } else {
-                    let amount = action.get("amount").and_then(Value::as_i64).ok_or("Gebot fehlt")?;
-                    if amount <= a.bid as i64 {
-                        return Err("Dein Gebot muss höher sein".into());
-                    }
-                    if amount > self.pls[i].money as i64 {
-                        return Err("So viel Geld hast du nicht".into());
-                    }
-                    a.bid = amount as i32;
-                    a.bidder = Some(i);
-                    self.log(i, format!("bietet {amount} €"), None);
-                }
-                self.auction_check();
-                return Ok(());
+                self.trades.remove(pos);
+                self.log(i, "zieht das Handelsangebot an".into(), Some(to));
             }
-            "trade_accept" | "trade_decline" | "trade_cancel" => {
-                let t = self.trade.as_ref().ok_or("Kein Handelsangebot offen")?;
-                match kind {
-                    "trade_cancel" if t.from == i => {
-                        self.trade = None;
-                    }
-                    "trade_decline" if t.to == i => {
-                        self.log(i, "lehnt das Handelsangebot von".into(), Some(t.from));
-                        self.trade = None;
-                    }
-                    "trade_accept" if t.to == i => {
-                        if !matches!(self.phase, Phase::Roll | Phase::End) {
-                            return Err("Gerade nicht möglich".into());
-                        }
-                        let (from, to) = (t.from, t.to);
-                        let (give, take) = (t.give.clone(), t.take.clone());
-                        self.valid_offer(from, &give)?;
-                        self.valid_offer(to, &take)?;
-                        for (src, dst, o) in [(from, to, &give), (to, from, &take)] {
-                            self.pls[src].money -= o.money;
-                            self.pls[dst].money += o.money;
-                            self.pls[src].cards -= o.cards;
-                            self.pls[dst].cards += o.cards;
-                            for pr in &o.props {
-                                self.own[*pr].owner = Some(dst);
-                            }
-                        }
-                        self.trade = None;
-                        self.log(to, "tauscht mit".into(), Some(from));
-                    }
-                    _ => return Err("Das kannst du nicht tun".into()),
+            "trade_decline" => {
+                if to != i {
+                    return Err("Das Angebot ist nicht an dich gerichtet".into());
                 }
-                return Ok(());
+                self.trades.remove(pos);
+                self.log(i, "lehnt das Handelsangebot von".into(), Some(from));
             }
-            _ => {}
+            "trade_counter" => {
+                if to != i {
+                    return Err("Das Angebot ist nicht an dich gerichtet".into());
+                }
+                // Aus Sicht des Antwortenden: give = was ich abgebe, take = was ich bekomme
+                let (give, take) = offers(action);
+                if give.money == 0 && give.props.is_empty() && give.cards == 0 && take.money == 0 && take.props.is_empty() && take.cards == 0 {
+                    return Err("Das Angebot ist leer".into());
+                }
+                self.valid_offer(i, &give)?;
+                self.valid_offer(from, &take)?;
+                let t = &mut self.trades[pos];
+                t.from = i;
+                t.to = from;
+                t.give = give;
+                t.take = take;
+                t.rounds += 1;
+                self.log(i, "macht ein Gegenangebot an".into(), Some(from));
+            }
+            _ => {
+                if to != i {
+                    return Err("Das Angebot ist nicht an dich gerichtet".into());
+                }
+                self.execute_trade(pos)?;
+            }
         }
+        Ok(())
+    }
 
-        if i != self.cur {
-            return Err("Du bist nicht dran".into());
+    fn execute_trade(&mut self, pos: usize) -> Result<(), String> {
+        let t = self.trades[pos].clone();
+        let (from, to) = (t.from, t.to);
+        self.valid_offer(from, &t.give)?;
+        self.valid_offer(to, &t.take)?;
+        // Wer ein Grundstück mit Hypothek übernimmt, zahlt 10 % des Hypothekenwerts an die Bank
+        let fee = |props: &Vec<usize>| -> i32 { props.iter().filter(|p| self.own[**p].mort).map(|p| (BOARD[*p].price / 2 + 9) / 10).sum() };
+        let (to_fee, from_fee) = (fee(&t.give.props), fee(&t.take.props));
+        let new_from = self.pls[from].money - t.give.money + t.take.money - from_fee;
+        let new_to = self.pls[to].money - t.take.money + t.give.money - to_fee;
+        if new_from < 0 || new_to < 0 {
+            return Err("Nicht genug Geld (inklusive 10 % Gebühr für übernommene Hypotheken)".into());
         }
-        let trade_open = self.trade.is_some();
+        self.pls[from].money = new_from;
+        self.pls[to].money = new_to;
+        for (src, dst, o) in [(from, to, &t.give), (to, from, &t.take)] {
+            self.pls[src].cards -= o.cards;
+            self.pls[dst].cards += o.cards;
+            for pr in &o.props {
+                self.own[*pr].owner = Some(dst);
+            }
+        }
+        self.trades.remove(pos);
+        self.log(to, "tauscht mit".into(), Some(from));
+        // Andere Angebote, die nun nicht mehr gültig sind, verfallen
+        let stale: Vec<u32> = self
+            .trades
+            .iter()
+            .filter(|x| self.valid_offer(x.from, &x.give).is_err() || self.valid_offer(x.to, &x.take).is_err())
+            .map(|x| x.id)
+            .collect();
+        self.trades.retain(|x| !stale.contains(&x.id));
+        Ok(())
+    }
 
-        match kind {
-            "roll" => {
-                if self.phase != Phase::Roll {
-                    return Err("Du kannst gerade nicht würfeln".into());
-                }
-                if trade_open {
-                    return Err("Erst das Handelsangebot klären".into());
-                }
-                self.do_roll(i);
-                Ok(())
-            }
-            "pay_jail" | "use_card" => {
-                if self.phase != Phase::Roll || !self.pls[i].in_jail {
-                    return Err("Du bist nicht im Gefängnis".into());
-                }
-                if kind == "use_card" {
-                    if self.pls[i].cards == 0 {
-                        return Err("Du hast keine Freikarte".into());
-                    }
-                    self.pls[i].cards -= 1;
-                    self.log(i, "nutzt die Freikarte".into(), None);
-                } else {
-                    if self.pls[i].money < JAIL_FINE {
-                        return Err("Nicht genug Geld".into());
-                    }
-                    self.pls[i].money -= JAIL_FINE;
-                    self.log(i, format!("zahlt {JAIL_FINE} € und verlässt das Gefängnis"), None);
-                }
-                self.pls[i].in_jail = false;
-                self.pls[i].jail_fails = 0;
-                Ok(())
-            }
-            "buy" => {
-                if self.phase != Phase::Buy {
-                    return Err("Es gibt nichts zu kaufen".into());
-                }
-                let pos = self.buy;
-                let price = BOARD[pos].price;
-                if self.pls[i].money < price {
-                    return Err("Nicht genug Geld – starte eine Auktion".into());
-                }
-                self.pls[i].money -= price;
-                self.own[pos].owner = Some(i);
-                self.phase = Phase::End;
-                self.log(i, format!("kauft {} für {price} €", BOARD[pos].name), None);
-                Ok(())
-            }
-            "decline_buy" => {
-                if self.phase != Phase::Buy {
-                    return Err("Es gibt nichts zu kaufen".into());
-                }
-                let passed: Vec<bool> = self.pls.iter().map(|x| x.out).collect();
-                self.auction = Some(Auction { pos: self.buy, bid: 0, bidder: None, passed });
-                self.phase = Phase::Auction;
-                self.log(i, format!("versteigert {}", BOARD[self.buy].name), None);
-                Ok(())
-            }
-            "build" | "sell_house" | "mortgage" | "unmortgage" => {
-                let pos = pos_arg()?;
-                let phase_ok = matches!(self.phase, Phase::Roll | Phase::End) || (self.phase == Phase::Debt && (kind == "sell_house" || kind == "mortgage"));
-                if !phase_ok {
-                    return Err("Gerade nicht möglich".into());
-                }
-                let s = &BOARD[pos];
+    /// Bauen, Häuser verkaufen, Hypothek aufnehmen/auslösen (Berechtigung prüft der Aufrufer).
+    fn manage(&mut self, i: usize, kind: &str, pos: usize) -> Result<(), String> {
+        let s = &BOARD[pos];
                 match kind {
                     "build" => {
                         self.group_ok_for_build(i, pos)?;
@@ -880,9 +870,9 @@ impl Game for Monopoly {
                         Ok(())
                     }
                     "sell_house" => {
-                        self.group_ok_for_build(i, pos).or_else(|_| {
-                            if s.kind == Kind::Prop && self.own[pos].owner == Some(i) { Ok(()) } else { Err("Das Grundstück gehört dir nicht".to_string()) }
-                        })?;
+                        if s.kind != Kind::Prop || self.own[pos].owner != Some(i) {
+                            return Err("Das Grundstück gehört dir nicht".into());
+                        }
                         let h = self.own[pos].houses;
                         if h == 0 {
                             return Err("Hier steht kein Haus".into());
@@ -937,13 +927,137 @@ impl Game for Monopoly {
                         Ok(())
                     }
                 }
+    }
+}
+
+impl Game for Monopoly {
+    fn apply(&mut self, p: PlayerId, action: &Value) -> Result<(), String> {
+        let i = self.pls.iter().position(|x| x.id == p).ok_or("Du bist nicht in diesem Spiel")?;
+        if self.pls[i].out {
+            return Err("Du bist ausgeschieden".into());
+        }
+        if self.phase == Phase::Over {
+            return Err("Das Spiel ist vorbei".into());
+        }
+        let kind = action.get("type").and_then(Value::as_str).unwrap_or("");
+        let pos_arg = || -> Result<usize, String> {
+            let p = action.get("pos").and_then(Value::as_u64).ok_or("Feld fehlt")? as usize;
+            if p < 40 { Ok(p) } else { Err("Ungültiges Feld".into()) }
+        };
+
+        // ---- Aktionen, die nicht nur der aktive Spieler ausführen darf ----
+        match kind {
+            "bid" | "pass" => {
+                if self.phase != Phase::Auction {
+                    return Err("Gerade läuft keine Auktion".into());
+                }
+                let a = self.auction.as_mut().ok_or("Keine Auktion")?;
+                if a.passed[i] {
+                    return Err("Du hast schon gepasst".into());
+                }
+                if kind == "pass" {
+                    a.passed[i] = true;
+                    self.log(i, "passt".into(), None);
+                } else {
+                    let amount = action.get("amount").and_then(Value::as_i64).ok_or("Gebot fehlt")?;
+                    if amount <= a.bid as i64 {
+                        return Err("Dein Gebot muss höher sein".into());
+                    }
+                    if amount > self.pls[i].money as i64 {
+                        return Err("So viel Geld hast du nicht".into());
+                    }
+                    a.bid = amount as i32;
+                    a.bidder = Some(i);
+                    self.log(i, format!("bietet {amount} €"), None);
+                }
+                self.auction_check();
+                return Ok(());
+            }
+            "trade_propose" | "trade_counter" | "trade_accept" | "trade_decline" | "trade_cancel" => {
+                if self.phase == Phase::Auction {
+                    return Err("Während einer Auktion kann nicht gehandelt werden".into());
+                }
+                return self.trade_action(i, kind, action);
+            }
+            "build" | "sell_house" | "mortgage" | "unmortgage" => {
+                let pos = pos_arg()?;
+                let light = kind == "sell_house" || kind == "mortgage";
+                let ok = match self.phase {
+                    Phase::Roll | Phase::End => i == self.cur,
+                    Phase::Buy | Phase::Debt => i == self.cur && light,
+                    // In der Auktion darf jeder Geld flüssig machen, um mitzubieten
+                    Phase::Auction => light,
+                    Phase::Over => false,
+                };
+                if !ok {
+                    return Err("Gerade nicht möglich".into());
+                }
+                return self.manage(i, kind, pos);
+            }
+            _ => {}
+        }
+
+        if i != self.cur {
+            return Err("Du bist nicht dran".into());
+        }
+
+        match kind {
+            "roll" => {
+                if self.phase != Phase::Roll {
+                    return Err("Du kannst gerade nicht würfeln".into());
+                }
+                self.do_roll(i);
+                Ok(())
+            }
+            "pay_jail" | "use_card" => {
+                if self.phase != Phase::Roll || !self.pls[i].in_jail {
+                    return Err("Du bist nicht im Gefängnis".into());
+                }
+                if kind == "use_card" {
+                    if self.pls[i].cards == 0 {
+                        return Err("Du hast keine Freikarte".into());
+                    }
+                    self.pls[i].cards -= 1;
+                    self.log(i, "nutzt die Freikarte".into(), None);
+                } else {
+                    if self.pls[i].money < JAIL_FINE {
+                        return Err("Nicht genug Geld".into());
+                    }
+                    self.pls[i].money -= JAIL_FINE;
+                    self.log(i, format!("zahlt {JAIL_FINE} € und verlässt das Gefängnis"), None);
+                }
+                self.pls[i].in_jail = false;
+                self.pls[i].jail_fails = 0;
+                Ok(())
+            }
+            "buy" => {
+                if self.phase != Phase::Buy {
+                    return Err("Es gibt nichts zu kaufen".into());
+                }
+                let pos = self.buy;
+                let price = BOARD[pos].price;
+                if self.pls[i].money < price {
+                    return Err("Nicht genug Geld – starte eine Auktion".into());
+                }
+                self.pls[i].money -= price;
+                self.own[pos].owner = Some(i);
+                self.phase = Phase::End;
+                self.log(i, format!("kauft {} für {price} €", BOARD[pos].name), None);
+                Ok(())
+            }
+            "decline_buy" => {
+                if self.phase != Phase::Buy {
+                    return Err("Es gibt nichts zu kaufen".into());
+                }
+                let passed: Vec<bool> = self.pls.iter().map(|x| x.out).collect();
+                self.auction = Some(Auction { pos: self.buy, bid: 0, bidder: None, passed });
+                self.phase = Phase::Auction;
+                self.log(i, format!("versteigert {}", BOARD[self.buy].name), None);
+                Ok(())
             }
             "end_turn" => {
                 if self.phase != Phase::End {
                     return Err("Dein Zug ist noch nicht fertig".into());
-                }
-                if trade_open {
-                    return Err("Erst das Handelsangebot klären".into());
                 }
                 if self.extra && !self.pls[i].in_jail {
                     self.phase = Phase::Roll;
@@ -977,34 +1091,11 @@ impl Game for Monopoly {
                 self.bankrupt(i, creditor);
                 Ok(())
             }
-            "trade_propose" => {
-                if !matches!(self.phase, Phase::Roll | Phase::End) {
-                    return Err("Handeln geht nur, wenn du am Zug bist und nichts offen ist".into());
-                }
-                if trade_open {
-                    return Err("Es ist schon ein Angebot offen".into());
-                }
-                let to_id = action.get("to").and_then(Value::as_u64).ok_or("Partner fehlt")? as u32;
-                let to = self.pls.iter().position(|x| x.id == to_id).ok_or("Unbekannter Mitspieler")?;
-                if to == i || self.pls[to].out {
-                    return Err("Mit diesem Spieler kannst du nicht handeln".into());
-                }
-                let give = parse_offer(action.get("give").unwrap_or(&Value::Null));
-                let take = parse_offer(action.get("take").unwrap_or(&Value::Null));
-                if give.money == 0 && give.props.is_empty() && give.cards == 0 && take.money == 0 && take.props.is_empty() && take.cards == 0 {
-                    return Err("Das Angebot ist leer".into());
-                }
-                self.valid_offer(i, &give)?;
-                self.valid_offer(to, &take)?;
-                self.trade = Some(Trade { from: i, to, give, take });
-                self.log(i, "macht ein Handelsangebot an".into(), Some(to));
-                Ok(())
-            }
             _ => Err("Unbekannte Aktion".into()),
         }
     }
 
-    fn view(&self, _viewer: PlayerId) -> Value {
+    fn view(&self, viewer: PlayerId) -> Value {
         let board: Vec<Value> = BOARD
             .iter()
             .map(|s| {
@@ -1045,9 +1136,10 @@ impl Game for Monopoly {
             "debt": self.debt.as_ref().map(|d| json!({
                 "creditor": d.creditor.map(|c| self.pls[c].id), "amount": d.amount, "each": d.each,
             })),
-            "trade": self.trade.as_ref().map(|t| json!({
-                "from": self.pls[t.from].id, "to": self.pls[t.to].id, "give": offer_json(&t.give), "take": offer_json(&t.take),
-            })),
+            "trades": self.trades.iter().filter(|t| self.pls[t.from].id == viewer || self.pls[t.to].id == viewer).map(|t| json!({
+                "id": t.id, "from": self.pls[t.from].id, "to": self.pls[t.to].id,
+                "give": offer_json(&t.give), "take": offer_json(&t.take), "rounds": t.rounds,
+            })).collect::<Vec<_>>(),
             "houses_left": self.houses_left,
             "hotels_left": self.hotels_left,
             "card": self.last_card,
@@ -1141,9 +1233,15 @@ mod tests {
                             let _ = g.apply(cur, &json!({"type": "trade_propose", "to": other,
                                 "give": {"money": 50, "props": mine.iter().take(1).collect::<Vec<_>>()},
                                 "take": {"props": theirs.iter().take(1).collect::<Vec<_>>()}}));
-                            if g.view(1)["trade"].is_object() {
-                                let _ = g.apply(other, &json!({"type": "trade_accept"}));
-                                let _ = g.apply(cur, &json!({"type": "trade_cancel"}));
+                            if let Some(t) = g.view(cur as u32)["trades"].as_array().and_then(|a| a.first().cloned()) {
+                                let id = t["id"].clone();
+                                if rng.gen_bool(0.5) {
+                                    let _ = g.apply(t["to"].as_u64().unwrap() as u32, &json!({"type": "trade_counter", "id": id, "give": {"money": 10}, "take": {"money": 20}}));
+                                }
+                                let id = g.view(1)["trades"].as_array().and_then(|a| a.first().map(|t| t["id"].clone())).unwrap_or(id);
+                                let to = g.view(1)["trades"].as_array().and_then(|a| a.first().map(|t| t["to"].as_u64().unwrap() as u32)).unwrap_or(other);
+                                let _ = g.apply(to, &json!({"type": "trade_accept", "id": id}));
+                                let _ = g.apply(cur, &json!({"type": "trade_cancel", "id": id}));
                             }
                         }
                         g.apply(cur, &json!({"type": "end_turn"})).unwrap();
@@ -1168,5 +1266,126 @@ mod tests {
         assert_eq!(BOARD.iter().filter(|s| s.kind == Kind::Rail).count(), 4);
         assert_eq!(group_members(9).len(), 2);
         assert_eq!(unmortgage_cost(1), 33);
+    }
+
+    fn game() -> Monopoly {
+        let mut g = Monopoly::new(&[10, 20, 30]);
+        g.pls.sort_by_key(|p| p.id);
+        g.cur = 0;
+        g
+    }
+
+    #[test]
+    fn mortgage_while_buying_and_in_auction() {
+        let mut g = game();
+        // Spieler 0 besitzt Braun + Hellblau (ganze Gruppen), hat aber kaum Bargeld
+        for p in [1usize, 3, 6, 8, 9] {
+            g.own[p].owner = Some(0);
+        }
+        g.pls[0].money = 10;
+        g.phase = Phase::Buy;
+        g.buy = 11; // Rosengasse 140 €
+        assert!(g.apply(10, &json!({"type": "buy"})).is_err());
+        for p in [1, 3, 6, 8] {
+            g.apply(10, &json!({"type": "mortgage", "pos": p})).unwrap();
+        }
+        // 10 + 30 + 30 + 50 + 50 = 170
+        assert_eq!(g.pls[0].money, 170);
+        // Andere dürfen in der Kauf-Phase nicht
+        assert!(g.apply(20, &json!({"type": "mortgage", "pos": 9})).is_err());
+        g.apply(10, &json!({"type": "buy"})).unwrap();
+        assert_eq!(g.own[11].owner, Some(0));
+        assert!(g.phase == Phase::End);
+
+        // Auktion: auch Nicht-Aktive dürfen Hypotheken aufnehmen
+        let mut g = game();
+        g.own[39].owner = Some(1); // Kronenallee
+        g.pls[1].money = 5;
+        g.buy = 37;
+        g.phase = Phase::Buy;
+        g.apply(10, &json!({"type": "decline_buy"})).unwrap();
+        assert!(g.phase == Phase::Auction);
+        g.apply(20, &json!({"type": "mortgage", "pos": 39})).unwrap(); // +200
+        assert_eq!(g.pls[1].money, 205);
+        g.apply(20, &json!({"type": "bid", "amount": 205})).unwrap();
+        // Spieler 0 und 2 können mitbieten, bis sie passen
+        g.apply(10, &json!({"type": "pass"})).unwrap();
+        g.apply(30, &json!({"type": "pass"})).unwrap();
+        assert_eq!(g.own[37].owner, Some(1));
+    }
+
+    #[test]
+    fn auction_waits_for_player_who_can_raise_cash() {
+        let mut g = game();
+        g.pls[1].money = 0;
+        g.own[39].owner = Some(1); // könnte 200 € per Hypothek holen
+        g.buy = 37;
+        g.phase = Phase::Buy;
+        g.apply(10, &json!({"type": "decline_buy"})).unwrap();
+        g.apply(10, &json!({"type": "bid", "amount": 50})).unwrap();
+        g.apply(30, &json!({"type": "pass"})).unwrap();
+        // Spieler 1 hat 0 €, kann aber flüssig machen -> Auktion läuft weiter
+        assert!(g.phase == Phase::Auction);
+        g.apply(20, &json!({"type": "pass"})).unwrap();
+        assert!(g.phase == Phase::End);
+    }
+
+    #[test]
+    fn trade_negotiation_ping_pong() {
+        let mut g = game();
+        g.own[1].owner = Some(0);
+        g.own[3].owner = Some(1);
+        g.pls[0].money = 500;
+        g.pls[1].money = 500;
+        // Angebot: 0 gibt Mühlenweg + 100 €, will Gerbergasse
+        g.apply(10, &json!({"type": "trade_propose", "to": 20, "give": {"money": 100, "props": [1]}, "take": {"props": [3]}})).unwrap();
+        // Nicht der Anbieter darf annehmen, ein Dritter auch nicht
+        let id = g.view(10)["trades"][0]["id"].clone();
+        assert!(g.apply(10, &json!({"type": "trade_accept", "id": id})).is_err());
+        assert!(g.apply(30, &json!({"type": "trade_accept", "id": id})).is_err());
+        assert_eq!(g.view(30)["trades"].as_array().unwrap().len(), 0);
+        // Spieler 1 verhandelt: will nur 50 € statt 100 € und tauscht trotzdem
+        g.apply(20, &json!({"type": "trade_counter", "id": id, "give": {"props": [3]}, "take": {"money": 50, "props": [1]}})).unwrap();
+        let t = g.view(10)["trades"][0].clone();
+        assert_eq!(t["from"], 20);
+        assert_eq!(t["to"], 10);
+        assert_eq!(t["rounds"], 1);
+        // Spieler 0 ändert erneut
+        g.apply(10, &json!({"type": "trade_counter", "id": id, "give": {"money": 50, "props": [1]}, "take": {"props": [3]}})).unwrap();
+        g.apply(20, &json!({"type": "trade_accept", "id": id})).unwrap();
+        assert_eq!(g.own[1].owner, Some(1));
+        assert_eq!(g.own[3].owner, Some(0));
+        assert_eq!(g.pls[0].money, 450);
+        assert_eq!(g.pls[1].money, 550);
+        assert!(g.trades.is_empty());
+    }
+
+    #[test]
+    fn trade_decline_cancel_and_mortgage_fee() {
+        let mut g = game();
+        g.own[39].owner = Some(1);
+        g.own[39].mort = true;
+        g.pls[0].money = 500;
+        g.pls[1].money = 100;
+        g.apply(10, &json!({"type": "trade_propose", "to": 20, "give": {"money": 100}, "take": {"props": [39]}})).unwrap();
+        assert!(g.apply(10, &json!({"type": "trade_propose", "to": 20, "give": {"money": 5}})).is_err(), "nur ein Angebot pro Paar");
+        let id = g.view(10)["trades"][0]["id"].clone();
+        g.apply(20, &json!({"type": "trade_accept", "id": id})).unwrap();
+        // 10 % Gebühr auf den Hypothekenwert (200) = 20 € für den Übernehmer (Spieler 0)
+        assert_eq!(g.pls[0].money, 500 - 100 - 20);
+        assert_eq!(g.pls[1].money, 200);
+        assert_eq!(g.own[39].owner, Some(0));
+        // Ablehnen und Zurückziehen
+        g.apply(20, &json!({"type": "trade_propose", "to": 30, "give": {"money": 10}})).unwrap();
+        let id = g.view(20)["trades"][0]["id"].clone();
+        assert!(g.apply(20, &json!({"type": "trade_decline", "id": id})).is_err());
+        g.apply(30, &json!({"type": "trade_decline", "id": id})).unwrap();
+        g.apply(20, &json!({"type": "trade_propose", "to": 30, "give": {"money": 10}})).unwrap();
+        let id = g.view(20)["trades"][0]["id"].clone();
+        g.apply(20, &json!({"type": "trade_cancel", "id": id})).unwrap();
+        assert!(g.trades.is_empty());
+        // Handeln ist auch außerhalb des eigenen Zuges möglich
+        assert!(g.cur == 0);
+        g.apply(30, &json!({"type": "trade_propose", "to": 20, "give": {"money": 1}})).unwrap();
     }
 }

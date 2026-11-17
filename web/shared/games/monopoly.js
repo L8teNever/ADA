@@ -6,7 +6,7 @@
   const ICON = { go: '🏁', chance: '❓', chest: '🎁', tax: '💸', jail: '🔒', free: '🅿️', gojail: '👮', rail: '🚂', util: '💡' };
   const eur = (n) => `${n} €`;
 
-  const ui = { tab: 'props', info: null, draft: null, bid: '' };
+  const ui = { tab: 'props', info: null, draft: null, bid: '', later: new Set() };
   
   function gridPos(pos) {
     if (pos <= 10) return { r: 11, c: 11 - pos, side: pos === 0 || pos === 10 ? 'b' : 'b' };
@@ -26,9 +26,13 @@
       const name = (id) => esc((ctx.players[id] || {}).name || '?');
       const me = pl.find((p) => p.id === you);
       const myTurn = v.current === you && !(me && me.out) && v.phase !== 'over';
-      const tradeOpen = !!v.trade;
+      const trades = v.trades || [];
+      const incoming = trades.filter((t) => t.to === you);
       const canManage = myTurn && (v.phase === 'roll' || v.phase === 'end');
-      const canRaise = myTurn && v.phase === 'debt';
+      // Geld flüssig machen (Hypothek, Hausverkauf): beim Kaufen, bei Schulden und in jeder Auktion
+      const canRaise = (myTurn && (v.phase === 'debt' || v.phase === 'buy')) || (v.phase === 'auction' && me && !me.out);
+      const canTradeNow = !!me && !me.out && v.phase !== 'auction' && v.phase !== 'over';
+      const feeFor = (props) => props.filter((p) => v.own[p].m).reduce((a, p) => a + Math.ceil(v.board[p].p / 2 / 10), 0);
       const logText = (e) => `${name(e.p)} ${esc(e.t)}${e.q ? ' ' + name(e.q) : ''}`;
 
       /* ---------- Brett ---------- */
@@ -61,23 +65,20 @@
 
       if (v.phase === 'over') {
         center = `<div class="t" style="font-size:1.3em">🏆 ${v.winner === you ? 'Du hast gewonnen!' : name(v.winner) + ' gewinnt!'}</div>${ctx.isHost ? '<button class="btn" data-act="lobby">Zurück zur Lobby</button>' : ''}`;
-      } else if (v.trade && v.trade.to === you) {
-        center = `<div class="t">Handelsangebot von ${name(v.trade.from)}</div>
-          <div class="sub">Du bekommst: ${offerLines(v.trade.give)}</div><div class="sub">Du gibst: ${offerLines(v.trade.take)}</div>
-          <div class="row"><button class="btn" data-act="trade_accept">Annehmen</button><button class="btn tonal" data-act="trade_decline">Ablehnen</button></div>`;
       } else if (v.phase === 'roll') {
         if (myTurn) {
           center = `${dice}${cardNote}<div class="t">Du bist dran</div>`;
           if (me.jail) {
             center += `<div class="sub">Du sitzt im Gefängnis (Pasch = frei)</div><div class="row"><button class="btn" data-act="roll">Würfeln</button>
               <button class="btn tonal small" data-act="pay_jail">50 € zahlen</button>${me.cards ? '<button class="btn tonal small" data-act="use_card">Freikarte</button>' : ''}</div>`;
-          } else center += `<button class="btn" data-act="roll" ${tradeOpen ? 'disabled' : ''}>🎲 Würfeln</button>`;
-          if (tradeOpen && v.trade.from === you) center += `<div class="sub">Angebot an ${name(v.trade.to)} offen <button class="btn text small" data-act="trade_cancel">zurückziehen</button></div>`;
+          } else center += `<button class="btn" data-act="roll">🎲 Würfeln</button>`;
         } else center = `${dice}${cardNote}<div class="t">${name(v.current)} ist am Zug</div>`;
       } else if (v.phase === 'buy') {
         center = `${dice}${cardNote}${mini(v.buy)}`;
+        const price = v.board[v.buy].p;
         center += myTurn
-          ? `<div class="row"><button class="btn" data-act="buy" ${me.money < v.board[v.buy].p ? 'disabled' : ''}>Kaufen</button><button class="btn tonal" data-act="decline_buy">Auktion</button></div>`
+          ? `<div class="row"><button class="btn" data-act="buy" ${me.money < price ? 'disabled' : ''}>Kaufen</button><button class="btn tonal" data-act="decline_buy">Auktion</button></div>
+             ${me.money < price ? `<div class="sub">Dir fehlen ${eur(price - me.money)}.</div>` : ''}<button class="btn text small" data-jump="props">💰 Hypothek aufnehmen</button>`
           : `<div class="sub">${name(v.current)} überlegt zu kaufen…</div>`;
       } else if (v.phase === 'auction' && v.auction) {
         const a = v.auction, iPassed = a.passed.includes(you), can = me && !me.out && !iPassed && me.money > a.bid;
@@ -85,7 +86,8 @@
         if (can) {
           center += `<div class="row">${[10, 50, 100].map((d) => `<button class="btn tonal small" data-bid="${a.bid + d}" ${me.money < a.bid + d ? 'disabled' : ''}>+${d}</button>`).join('')}</div>
             <div class="row"><input type="number" inputmode="numeric" min="${a.bid + 1}" max="${me.money}" placeholder="${a.bid + 1}" value="${esc(ui.bid)}" data-bidin><button class="btn small" data-act="bidcustom">Bieten</button><button class="btn text small" data-act="pass">Passen</button></div>`;
-        } else center += `<div class="sub">${iPassed ? 'Du hast gepasst.' : 'Du kannst nicht mehr überbieten.'}</div>`;
+        } else center += `<div class="sub">${iPassed ? 'Du hast gepasst.' : 'Du kannst gerade nicht überbieten.'}</div>`;
+        if (me && !me.out && !iPassed) center += `<button class="btn text small" data-jump="props">💰 Geld beschaffen (Hypothek)</button>${can ? '' : '<button class="btn text small" data-act="pass">Passen</button>'}`;
       } else if (v.phase === 'debt' && v.debt) {
         const d = v.debt;
         center = `${cardNote}<div class="t">${myTurn ? 'Du musst' : name(v.current) + ' muss'} ${eur(d.amount)} zahlen</div>
@@ -95,8 +97,7 @@
       } else {
         center = `${dice}${cardNote}`;
         if (myTurn) {
-          center += `<div class="t">${v.extra ? 'Pasch! Nochmal dran' : 'Dein Zug'}</div><button class="btn" data-act="end_turn" ${tradeOpen ? 'disabled' : ''}>${v.extra ? '🎲 Nochmal würfeln' : 'Zug beenden'}</button>`;
-          if (tradeOpen && v.trade.from === you) center += `<div class="sub">Angebot an ${name(v.trade.to)} offen <button class="btn text small" data-act="trade_cancel">zurückziehen</button></div>`;
+          center += `<div class="t">${v.extra ? 'Pasch! Nochmal dran' : 'Dein Zug'}</div><button class="btn" data-act="end_turn">${v.extra ? '🎲 Nochmal würfeln' : 'Zug beenden'}</button>`;
         } else center += `<div class="t">${name(v.current)} ist am Zug</div>`;
       }
 
@@ -133,12 +134,27 @@
       const rowsPlayers = () => pl.map((p, i) => {
         const ps = v.own.map((o, k) => (o && o.o === p.id ? k : -1)).filter((k) => k >= 0);
         const chips = ps.map((k) => `<span class="chipc" style="display:inline-block;width:10px;height:16px;margin-right:2px;background:${GROUP_COL[v.board[k].g]};opacity:${v.own[k].m ? .35 : 1}" title="${esc(v.board[k].n)}"></span>`).join('');
-        const canTrade = p.id !== you && !p.out && canManage && !tradeOpen;
+        const open = trades.some((t) => t.from === p.id || t.to === p.id);
+        const canTrade = p.id !== you && !p.out && canTradeNow;
         return `<div class="mo-row"><span class="chipc" style="background:${PCOL[i % PCOL.length]};height:34px"></span><div class="grow"><b>${name(p.id)}</b> <span class="st">${p.out ? 'ausgeschieden' : eur(p.money) + ' · ' + esc(v.board[p.pos].n) + (p.jail ? ' · Gefängnis' : '') + (p.cards ? ' · ' + p.cards + '× Freikarte' : '')}</span><div>${chips}</div></div>
-          ${canTrade ? `<button class="btn tonal" data-trade="${p.id}">Handeln</button>` : ''}</div>`;
+          ${canTrade ? (open ? `<button class="btn tonal" data-jump="trade">Angebot offen</button>` : `<button class="btn tonal" data-trade="${p.id}">Handeln</button>`) : ''}</div>`;
       }).join('') + `<div class="st">Bank: ${v.houses_left} Häuser · ${v.hotels_left} Hotels</div>`;
+      const rowsTrade = () => {
+        if (!trades.length) return '<div class="sub">Keine offenen Angebote. Wähle im Tab „Spieler“ jemanden zum Handeln – jederzeit, auch wenn du nicht dran bist.</div>';
+        return trades.map((t) => {
+          const inc = t.to === you, other = inc ? t.from : t.to;
+          const get = inc ? t.give : t.take, giveO = inc ? t.take : t.give;
+          const fee = feeFor(get.props);
+          return `<div class="mo-trade ${inc ? 'in' : ''}"><div><b>${inc ? name(other) + ' bietet dir' : 'Dein Angebot an ' + name(other)}</b>${t.rounds ? ` <span class="st">(Gegenangebot ${t.rounds})</span>` : ''}</div>
+            <div>Du bekommst: <b>${offerLines(get)}</b></div><div>Du gibst: <b>${offerLines(giveO)}</b></div>
+            ${fee ? `<div class="st">Für übernommene Hypotheken zahlst du 10 % Gebühr: ${eur(fee)}</div>` : ''}
+            <div class="row">${inc
+              ? `<button class="btn" data-tr="accept:${t.id}">Annehmen</button><button class="btn tonal" data-tr="counter:${t.id}">Ändern</button><button class="btn text" data-tr="decline:${t.id}">Ablehnen</button>`
+              : `<span class="st">Wartet auf ${name(other)}…</span><button class="btn text" data-tr="cancel:${t.id}">Zurückziehen</button>`}</div></div>`;
+        }).join('');
+      };
       const rowsLog = () => [...v.log].reverse().map((e) => `<div class="mo-log">${logText(e)}</div>`).join('') || '<div class="sub">Noch nichts passiert.</div>';
-      const tabBody = ui.tab === 'props' ? rowsProps() : ui.tab === 'players' ? rowsPlayers() : rowsLog();
+      const tabBody = ui.tab === 'props' ? rowsProps() : ui.tab === 'players' ? rowsPlayers() : ui.tab === 'trade' ? rowsTrade() : rowsLog();
 
       /* ---------- Modals ---------- */
       let modal = '';
@@ -164,21 +180,36 @@
         const partner = pl.find((p) => p.id === d.to);
         const pick = (id, side) => tradable(id).map((i) => `<label class="${d[side].props.has(i) ? 'on' : ''}" style="--gc:${GROUP_COL[v.board[i].g]}"><input type="checkbox" data-tp="${side}:${i}" ${d[side].props.has(i) ? 'checked' : ''}>${esc(v.board[i].n)}${v.own[i].m ? ' (H)' : ''}</label>`).join('') || '<span class="st">keine handelbaren Grundstücke</span>';
         modal = `<div class="mo-modal"><div class="mo-sheet">
-          <div class="title">Handel mit ${name(d.to)}</div>
+          <div class="title">${d.mode === 'counter' ? 'Gegenangebot an' : 'Handel mit'} ${name(d.to)}</div>
+          ${d.mode === 'counter' ? '<div class="st">Ändere das Angebot und schick es zurück – der andere kann annehmen, ablehnen oder wieder ändern.</div>' : ''}
           <div class="mo-two">
             <div><h4>Du gibst</h4><input class="mo-money" type="number" inputmode="numeric" min="0" max="${me.money}" placeholder="Geld (€)" value="${d.give.money || ''}" data-tm="give">
               <div class="mo-pick">${pick(you, 'give')}</div>${me.cards ? `<label class="st"><input type="checkbox" data-tc="give" ${d.give.cards ? 'checked' : ''}> Freikarte</label>` : ''}</div>
             <div><h4>Du bekommst</h4><input class="mo-money" type="number" inputmode="numeric" min="0" max="${partner ? partner.money : 0}" placeholder="Geld (€)" value="${d.take.money || ''}" data-tm="take">
               <div class="mo-pick">${pick(d.to, 'take')}</div>${partner && partner.cards ? `<label class="st"><input type="checkbox" data-tc="take" ${d.take.cards ? 'checked' : ''}> Freikarte</label>` : ''}</div>
           </div>
-          <div class="row"><button class="btn" data-act="trade_send">Angebot senden</button><button class="btn text" data-act="trade_close">Abbrechen</button></div></div></div>`;
+          ${feeFor([...d.take.props]) ? `<div class="st">Mit Hypothek belastete Grundstücke, die du bekommst, kosten dich 10 % des Hypothekenwerts (${eur(feeFor([...d.take.props]))}).</div>` : ''}
+          <div class="row"><button class="btn" data-act="trade_send">${d.mode === 'counter' ? 'Gegenangebot senden' : 'Angebot senden'}</button><button class="btn text" data-act="trade_close">Abbrechen</button></div></div></div>`;
+      }
+
+      if (!modal && incoming.length && v.phase !== 'auction') {
+        const t = incoming.find((x) => !ui.later.has(`${x.id}:${x.rounds}`));
+        if (t) {
+          const fee = feeFor(t.give.props);
+          modal = `<div class="mo-modal" data-later="${t.id}:${t.rounds}"><div class="mo-sheet">
+            <div class="title">${t.rounds ? 'Gegenangebot' : 'Handelsangebot'} von ${name(t.from)}</div>
+            <div>Du bekommst: <b>${offerLines(t.give)}</b></div><div>Du gibst: <b>${offerLines(t.take)}</b></div>
+            ${fee ? `<div class="st">Für übernommene Hypotheken zahlst du 10 % Gebühr: ${eur(fee)}</div>` : ''}
+            <div class="row"><button class="btn" data-tr="accept:${t.id}">Annehmen</button><button class="btn tonal" data-tr="counter:${t.id}">Ändern</button><button class="btn text" data-tr="decline:${t.id}">Ablehnen</button></div>
+            <button class="btn text" data-later="${t.id}:${t.rounds}">Später entscheiden</button></div></div>`;
+        }
       }
 
       Ada.patch(el, `<div class="mo">
         <div class="mo-top">${top}</div>
         <div class="mo-board">${squares}<div class="mo-center">${center}</div></div>
         <div class="mo-panel"><div class="mo-tabs">
-          ${[['props', 'Grundstücke'], ['players', 'Spieler'], ['log', 'Protokoll']].map(([k, l]) => `<button class="${ui.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+          ${[['props', 'Grundstücke'], ['players', 'Spieler'], ['trade', 'Handel'], ['log', 'Protokoll']].map(([k, l]) => `<button class="${ui.tab === k ? 'on' : ''}" data-tab="${k}">${l}${k === 'trade' && incoming.length ? ` <span class="bdg">${incoming.length}</span>` : ''}</button>`).join('')}</div>
           <div class="mo-body">${tabBody}</div></div>${modal}</div>`);
 
       /* ---------- Ereignisse ---------- */
@@ -189,7 +220,23 @@
       el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = (e) => { if (e.target === b) { ui.info = null; again(); } }));
       el.querySelectorAll('[data-pl]').forEach((b) => (b.onclick = () => { ui.tab = 'players'; again(); }));
       el.querySelectorAll('[data-trade]').forEach((b) => (b.onclick = () => {
-        ui.draft = { to: Number(b.dataset.trade), give: { money: 0, props: new Set(), cards: 0 }, take: { money: 0, props: new Set(), cards: 0 } }; again();
+        ui.draft = { mode: 'new', to: Number(b.dataset.trade), give: { money: 0, props: new Set(), cards: 0 }, take: { money: 0, props: new Set(), cards: 0 } }; again();
+      }));
+      el.querySelectorAll('[data-jump]').forEach((b) => (b.onclick = () => {
+        ui.tab = b.dataset.jump; again();
+        const panel = el.querySelector('.mo-panel'); if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }));
+      el.querySelectorAll('[data-later]').forEach((b) => (b.onclick = (e) => { if (e.target === b) { ui.later.add(b.dataset.later); again(); } }));
+      el.querySelectorAll('[data-tr]').forEach((b) => (b.onclick = () => {
+        const [act, idStr] = b.dataset.tr.split(':'); const id = Number(idStr);
+        const t = trades.find((x) => x.id === id); if (!t) return;
+        if (act === 'counter') {
+          ui.draft = { mode: 'counter', id, to: t.from,
+            give: { money: t.take.money, props: new Set(t.take.props), cards: t.take.cards },
+            take: { money: t.give.money, props: new Set(t.give.props), cards: t.give.cards } };
+          return again();
+        }
+        send({ type: 'trade_' + act, id });
       }));
       el.querySelectorAll('[data-bid]').forEach((b) => (b.onclick = () => send({ type: 'bid', amount: Number(b.dataset.bid) })));
       const bi = el.querySelector('[data-bidin]'); if (bi) bi.oninput = () => { ui.bid = bi.value; };
@@ -206,7 +253,7 @@
         if (a === 'trade_close') { ui.draft = null; return again(); }
         if (a === 'trade_send') {
           const d = ui.draft; ui.draft = null;
-          return send({ type: 'trade_propose', to: d.to, give: { money: d.give.money, props: [...d.give.props], cards: d.give.cards }, take: { money: d.take.money, props: [...d.take.props], cards: d.take.cards } });
+          return send({ type: d.mode === 'counter' ? 'trade_counter' : 'trade_propose', id: d.id, to: d.to, give: { money: d.give.money, props: [...d.give.props], cards: d.give.cards }, take: { money: d.take.money, props: [...d.take.props], cards: d.take.cards } });
         }
         if (a === 'surrender' && !confirm('Wirklich aufgeben? Du scheidest aus dem Spiel aus.')) return;
         const msg = { type: a };

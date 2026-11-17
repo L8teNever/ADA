@@ -79,3 +79,10 @@
   .mo-panel { width: auto; align-self: stretch; }
   .mo-body { max-height: calc(var(--bs) - 90px); }
 }
+
+/* Handel */
+.mo-tabs button .bdg { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--md-error); color: #fff; font-size: .7rem; line-height: 18px; }
+.mo-trade { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: var(--r-md); background: var(--md-sc-lowest); font-size: .85rem; }
+.mo-trade.in { box-shadow: inset 0 0 0 2px var(--md-primary); }
+.mo-trade .row { gap: 6px; }
+.mo-trade .btn { min-height: 36px; padding: 0 14px; font-size: .82rem; }
