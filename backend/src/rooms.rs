@@ -19,6 +19,8 @@ pub type Tx = UnboundedSender<String>;
 const MAX_ROOMS: usize = 300;
 const MAX_ROOMS_PER_OWNER: usize = 10;
 const ROOM_IDLE_SECS: u64 = 2 * 60 * 60;
+/// So viele Spieler passen in eine Lobby (einzelne Spiele können weniger zulassen)
+const MAX_LOBBY: usize = 12;
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -30,6 +32,16 @@ pub enum ClientMsg {
         key: Option<String>,
     },
     Start,
+    /// Host: Spiel für die nächste Partie wählen (nur in der Lobby)
+    SelectGame {
+        game: String,
+        #[serde(default)]
+        options: Value,
+    },
+    /// Host: Einstellungen des gewählten Spiels ändern
+    SetOptions {
+        options: Value,
+    },
     Action {
         action: Value,
     },
@@ -54,7 +66,9 @@ struct Player {
 
 struct Room {
     token: String,
-    info: GameInfo,
+    /// Gewähltes Spiel (None = Spiele-Lobby ohne Auswahl)
+    info: Option<GameInfo>,
+    catalog: Vec<GameInfo>,
     owner: String,
     owner_key: String,
     options: Value,
@@ -115,6 +129,8 @@ fn state_for(room: &Room, pid: PlayerId) -> Value {
         "room": {
             "token": room.token,
             "game": room.info,
+            "games": room.catalog,
+            "options": room.options,
             "state": if room.game.is_some() { "playing" } else { "lobby" },
             "over": room.game.as_ref().map_or(false, |g| g.finished()),
             "host": room.host,
@@ -167,7 +183,7 @@ fn public_info(room: &Room) -> Value {
         "state": if room.game.is_some() { "playing" } else { "lobby" },
         "players": room.players.len(),
         "online": room.players.iter().filter(|p| p.tx.is_some()).count(),
-        "max": room.info.max_players,
+        "max": room.info.as_ref().map_or(MAX_LOBBY, |i| i.max_players),
     })
 }
 
@@ -188,12 +204,11 @@ impl Hub {
         self.conns.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn create_room(&self, game_id: &str, owner_email: &str, options: Value) -> Result<String, String> {
-        let kind = self
-            .kinds
-            .iter()
-            .find(|k| k.info().id == game_id)
-            .ok_or("Unbekanntes Spiel")?;
+    pub fn create_room(&self, game_id: Option<&str>, owner_email: &str, options: Value) -> Result<String, String> {
+        let info = match game_id {
+            Some(id) => Some(self.kinds.iter().find(|k| k.info().id == id).ok_or("Unbekanntes Spiel")?.info()),
+            None => None,
+        };
         let mut rooms = self.rooms.lock().unwrap();
         if rooms.len() >= MAX_ROOMS {
             return Err("Gerade sind zu viele Räume offen".into());
@@ -209,10 +224,11 @@ impl Hub {
             token.clone(),
             Room {
                 token: token.clone(),
-                info: kind.info(),
+                info,
+                catalog: self.games(),
                 owner: owner_email.to_string(),
                 owner_key: format!("acct:{owner_email}"),
-                options,
+                options: if options.is_object() { options } else { json!({}) },
                 players: Vec::new(),
                 host: None,
                 game: None,
@@ -289,7 +305,7 @@ impl Hub {
                 if room.game.is_some() {
                     return Err("Das Spiel läuft schon – warte auf die nächste Runde".into());
                 }
-                if room.players.len() >= room.info.max_players {
+                if room.players.len() >= MAX_LOBBY {
                     return Err("Der Raum ist voll".into());
                 }
                 let name = unique_name(&room.players, name);
@@ -345,16 +361,55 @@ impl Hub {
                 } else if room.game.is_some() {
                     Err("Das Spiel läuft schon".into())
                 } else {
-                    // Nur wer online ist, spielt mit
-                    room.players.retain(|p| p.tx.is_some());
-                    let ids: Vec<PlayerId> = room.players.iter().map(|p| p.id).collect();
-                    let kind = self.kinds.iter().find(|k| k.info().id == room.info.id);
-                    match kind {
-                        Some(k) => k.start(&ids, &room.options).map(|g| {
-                            room.game = Some(g);
-                        }),
-                        None => Err("Spiel nicht gefunden".into()),
+                    match room.info.clone() {
+                        None => Err("Wähle zuerst ein Spiel".into()),
+                        Some(info) => {
+                            let online = room.players.iter().filter(|p| p.tx.is_some()).count();
+                            if online < info.min_players {
+                                Err(format!("{} braucht mindestens {} Spieler", info.name, info.min_players))
+                            } else if online > info.max_players {
+                                Err(format!("{} erlaubt höchstens {} Spieler – entferne Spieler oder wähle ein anderes Spiel", info.name, info.max_players))
+                            } else {
+                                // Nur wer online ist, spielt mit
+                                room.players.retain(|p| p.tx.is_some());
+                                let ids: Vec<PlayerId> = room.players.iter().map(|p| p.id).collect();
+                                match self.kinds.iter().find(|k| k.info().id == info.id) {
+                                    Some(k) => k.start(&ids, &room.options).map(|g| {
+                                        room.game = Some(g);
+                                    }),
+                                    None => Err("Spiel nicht gefunden".into()),
+                                }
+                            }
+                        }
                     }
+                }
+            }
+            ClientMsg::SelectGame { game, options } => {
+                if !is_host {
+                    Err("Nur der Host wählt das Spiel".into())
+                } else if room.game.is_some() {
+                    Err("Beende erst die laufende Partie".into())
+                } else {
+                    match self.kinds.iter().find(|k| k.info().id == game) {
+                        Some(k) => {
+                            room.info = Some(k.info());
+                            room.options = if options.is_object() { options } else { json!({}) };
+                            Ok(())
+                        }
+                        None => Err("Unbekanntes Spiel".into()),
+                    }
+                }
+            }
+            ClientMsg::SetOptions { options } => {
+                if !is_host {
+                    Err("Nur der Host ändert die Einstellungen".into())
+                } else if room.game.is_some() {
+                    Err("Während der Partie nicht möglich".into())
+                } else if !options.is_object() {
+                    Err("Ungültige Einstellungen".into())
+                } else {
+                    room.options = options;
+                    Ok(())
                 }
             }
             ClientMsg::Action { action } => match room.game.as_mut() {

@@ -47,7 +47,9 @@ pub async fn games(State(st): State<AppState>, _a: Account) -> Json<Vec<GameInfo
 
 #[derive(Deserialize)]
 pub struct CreateBody {
-    game: String,
+    /// Ohne Angabe entsteht eine Spiele-Lobby, in der der Host das Spiel wählt
+    #[serde(default)]
+    game: Option<String>,
     #[serde(default)]
     options: Value,
 }
@@ -55,7 +57,7 @@ pub struct CreateBody {
 pub async fn create_room(State(st): State<AppState>, Account(user): Account, Json(b): Json<CreateBody>) -> ApiResult<Value> {
     let token = st
         .hub
-        .create_room(&b.game, &user.email, b.options)
+        .create_room(b.game.as_deref().filter(|g| !g.is_empty()), &user.email, b.options)
         .map_err(|e| err(StatusCode::BAD_REQUEST, &e))?;
     Ok(Json(json!({
         "token": token,

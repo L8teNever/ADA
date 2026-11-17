@@ -26,10 +26,10 @@
     catch (e) {
       return page(`<div class="headline">Raum nicht gefunden</div><p class="muted">Der Link ist ungültig oder der Raum wurde geschlossen.</p>`);
     }
-    const full = info.players >= info.max && info.state === 'lobby' && info.online >= info.max;
+    const full = info.online >= info.max;
     page(`<div class="label muted">EINLADUNG</div>
-      <div class="display">${esc(info.game.name)}</div>
-      <p class="muted">${esc(info.game.description)}</p>
+      <div class="display">${info.game ? esc(info.game.name) : 'Spiele-Lobby'}</div>
+      <p class="muted">${info.game ? esc(info.game.description) : 'Tritt mit deinem Namen bei – der Host wählt, was gespielt wird.'}</p>
       <div class="row"><span class="chip">${icon('group')} ${info.online} online</span>
         <span class="chip ${info.state === 'playing' ? '' : 'ok'}">${info.state === 'playing' ? 'Läuft gerade' : 'Wartet auf Spieler'}</span></div>
       <form id="f" class="stack">

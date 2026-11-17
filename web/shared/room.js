@@ -97,11 +97,18 @@
       }
     }
 
+    const OPTION_UI = {
+      skribbl: [
+        { key: 'rounds', label: 'Runden', values: [1, 2, 3, 5, 8], def: 3, suffix: '' },
+        { key: 'time', label: 'Zeit pro Zug', values: [40, 60, 80, 120, 180], def: 80, suffix: ' s' },
+      ],
+    };
+
     function renderLobby(banner) {
       const { room, you } = state;
       const isHost = room.host === you;
       const online = room.players.filter((p) => p.connected).length;
-      const min = room.game.min_players;
+      const g = room.game; // gewähltes Spiel oder null
       const rows = room.players.map((p, i) => `
         <div class="list-item ${p.connected ? '' : 'offline'}">
           <div class="avatar c${i % 3}">${esc(initial(p.name))}</div>
@@ -114,16 +121,38 @@
         <div class="card filled"><div class="label muted">EINLADUNGSLINK</div>
           <div class="link-box"><code>${esc(o.shareLink)}</code>
             <button class="icon-btn" data-act="copy" aria-label="Link kopieren">${icon('copy')}</button></div>
-          <p class="muted">Jeder mit diesem Link kann mit einem Namen mitspielen.</p></div>` : '';
-      const canStart = isHost && online >= min;
+          <p class="muted">Der Link bleibt für alle Spiele gleich – einfach mit einem Namen beitreten.</p></div>` : '';
+
+      const tiles = (room.games || []).map((x) => `
+        <button class="gt ${g && g.id === x.id ? 'on' : ''}" data-pick="${esc(x.id)}" ${isHost ? '' : 'disabled'}>
+          <span class="gi">${icon('cards')}</span><b>${esc(x.name)}</b><span class="gs">${x.min_players}–${x.max_players} Spieler</span></button>`).join('');
+      const optDefs = g ? OPTION_UI[g.id] : null;
+      const opts = optDefs ? optDefs.map((d) => {
+        const cur = (room.options && room.options[d.key]) ?? d.def;
+        return `<div class="opt"><span class="label muted">${esc(d.label)}</span><span class="seg">${d.values.map((val) =>
+          `<button data-opt="${d.key}:${val}" class="${Number(cur) === val ? 'on' : ''}" ${isHost ? '' : 'disabled'}>${val}${d.suffix}</button>`).join('')}</span></div>`;
+      }).join('') : '';
+
+      let startHint = '';
+      let canStart = false;
+      if (!g) startHint = isHost ? 'Wähle oben ein Spiel.' : 'Der Host wählt gleich ein Spiel.';
+      else if (online < g.min_players) startHint = `${g.name} braucht mindestens ${g.min_players} Spieler.`;
+      else if (online > g.max_players) startHint = `${g.name} erlaubt höchstens ${g.max_players} Spieler – entferne jemanden oder wähle ein anderes Spiel.`;
+      else canStart = isHost;
+
       Ada.patch(root, `${banner}
         <div class="room-wrap lobby fade-in">
           <div class="stack">
             <div class="card hero">
-              <div class="label">LOBBY</div>
-              <div class="display">${esc(room.game.name)}</div>
-              <p>${esc(room.game.description)}</p>
-              <div class="row"><span class="chip">${online} online</span><span class="chip">${min}–${room.game.max_players} Spieler</span></div>
+              <div class="label">${g ? 'AUSGEWÄHLT' : 'SPIELE-LOBBY'}</div>
+              <div class="display">${g ? esc(g.name) : 'Was spielen wir?'}</div>
+              <p>${g ? esc(g.description) : isHost ? 'Du bist der Host: Wähle unten ein Spiel – nach der Runde kannst du jederzeit ein anderes wählen.' : 'Der Host wählt gleich das Spiel.'}</p>
+              <div class="row"><span class="chip">${online} online</span>${g ? `<span class="chip">${g.min_players}–${g.max_players} Spieler</span>` : ''}</div>
+            </div>
+            <div class="card">
+              <div class="label muted">${isHost ? 'SPIEL WÄHLEN' : 'SPIELE'}</div>
+              <div class="game-grid">${tiles}</div>
+              ${opts ? `<div class="opts">${opts}</div>` : ''}
             </div>
             ${share}
           </div>
@@ -131,17 +160,22 @@
             <div class="title">Spieler</div>
             <div class="list">${rows}</div>
             ${isHost
-              ? `<button class="btn big" data-act="start" ${canStart ? '' : 'disabled'}>${icon('play')} Spiel starten</button>
-                 ${canStart ? '' : `<p class="muted">Ab ${min} Spielern kann es losgehen.</p>`}`
+              ? `<button class="btn big" data-act="start" ${canStart ? '' : 'disabled'}>${icon('play')} ${g ? esc(g.name) + ' starten' : 'Spiel wählen'}</button>`
               : `<p class="muted">Warte, bis der Host das Spiel startet…</p>`}
+            ${startHint ? `<p class="muted">${esc(startHint)}</p>` : ''}
             <button class="btn text" data-act="leave">Raum verlassen</button>
           </div>
         </div>`);
-      const q = (s) => root.querySelector(s);
+      const q = (sel) => root.querySelector(sel);
       const copyBtn = q('[data-act=copy]'); if (copyBtn) copyBtn.onclick = () => copy(o.shareLink);
       const startBtn = q('[data-act=start]'); if (startBtn) startBtn.onclick = () => send({ type: 'start' });
       q('[data-act=leave]').onclick = () => { send({ type: 'leave' }); setTimeout(exit, 250); };
       root.querySelectorAll('[data-kick]').forEach((b) => (b.onclick = () => send({ type: 'kick', player: Number(b.dataset.kick) })));
+      root.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => { if (isHost) send({ type: 'select_game', game: b.dataset.pick, options: {} }); }));
+      root.querySelectorAll('[data-opt]').forEach((b) => (b.onclick = () => {
+        const [k, val] = b.dataset.opt.split(':');
+        send({ type: 'set_options', options: { ...(room.options || {}), [k]: Number(val) } });
+      }));
     }
 
     function renderGame(banner) {

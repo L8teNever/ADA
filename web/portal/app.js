@@ -18,7 +18,7 @@
 
   async function createRoom(gameId) {
     try {
-      const r = await api('/api/rooms', { method: 'POST', body: { game: gameId } });
+      const r = await api('/api/rooms', { method: 'POST', body: gameId ? { game: gameId } : {} });
       location.hash = '#/room/' + r.token;
     } catch (e) { toast(e.message); }
   }
@@ -29,20 +29,21 @@
       <div class="card hero">
         <div class="label">WILLKOMMEN</div>
         <div class="display">Hi ${esc(me.name)} 👋</div>
-        <p>Starte ein Spiel und schick den Link an deine Freunde – oder tritt einem Raum bei.</p>
+        <p>Erstelle eine Lobby, schick den Link an deine Freunde und wähle dann gemeinsam, was ihr spielt – oder tritt einem Raum bei.</p>
+        <div class="row"><button class="btn big" data-create="">${icon('add')} Lobby erstellen</button></div>
         <form id="join" class="row" style="flex-wrap:nowrap;margin-top:8px">
           <label class="field" style="flex:1;min-width:0"><input name="code" placeholder="Link oder Code" autocomplete="off" autocapitalize="off"><span>Raum beitreten</span></label>
           <button class="btn" type="submit" aria-label="Beitreten">${icon('forward')}</button>
         </form>
       </div>
-      <div class="headline section">Spiele</div>
+      <div class="headline section">Oder direkt mit einem Spiel starten</div>
       <div class="grid">${games.map((g) => `
         <div class="card">
           <div class="icon-badge">${icon('cards')}</div>
           <div class="title">${esc(g.name)}</div>
           <p class="muted">${esc(g.description)}</p>
           <div class="row"><span class="chip">${icon('group')} ${g.min_players}–${g.max_players}</span></div>
-          <button class="btn" data-create="${esc(g.id)}">${icon('add')} Raum erstellen</button>
+          <button class="btn" data-create="${esc(g.id)}">${icon('add')} Mit diesem Spiel starten</button>
         </div>`).join('') || '<div class="empty">Noch keine Spiele installiert.</div>'}
       </div>
     </div>`;
@@ -67,7 +68,7 @@
     view.innerHTML = `<div class="stack fade-in"><div class="headline section" style="margin-top:8px">Meine Räume</div>
       <div class="grid">${rooms.map((r) => `
         <div class="card">
-          <div class="row" style="justify-content:space-between"><div class="title">${esc(r.game.name)}</div>
+          <div class="row" style="justify-content:space-between"><div class="title">${r.game ? esc(r.game.name) : 'Spiele-Lobby'}</div>
             <span class="chip ${r.state === 'playing' ? 'ok' : ''}">${r.state === 'playing' ? 'Läuft' : 'Lobby'}</span></div>
           <div class="row"><span class="chip">${icon('group')} ${r.online}/${r.max} online</span></div>
           <div class="link-box"><code>${esc(r.link)}</code><button class="icon-btn" data-copy="${esc(r.link)}" aria-label="Link kopieren">${icon('copy')}</button></div>
@@ -115,7 +116,7 @@
         <a class="btn" href="#/">${icon('back')} Zurück</a></div></div>`;
       return;
     }
-    titleEl.textContent = info.game.name;
+    titleEl.textContent = info.game ? info.game.name : 'Spiele-Lobby';
     view.innerHTML = '<div id="room"></div>';
     room = Ada.mountRoom(view.querySelector('#room'), {
       token, wsPath: '/ws/' + encodeURIComponent(token), shareLink: info.link,

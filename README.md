@@ -8,8 +8,9 @@ Design im Material-3-Stil (adaptiv: Handy, Tablet, Desktop).
 | **Portal** | `ada.kulbarts.com` | Cloudflare Zero Trust. Account entsteht automatisch aus der Mail im Header. Hier Räume erstellen und spielen. |
 | **Spiele** | `game.kulbarts.com/<token>` (Alias möglich: `PLAY_HOST=a.example,b.example`) | Öffentlich. Wer den Link kennt, gibt einen Namen ein und spielt mit. |
 
-Ablauf: Im Portal ein Spiel wählen → Raum erstellen → Link `https://game.kulbarts.com/<token>`
-verteilen. Zero-Trust-Nutzer spielen direkt im Portal mit ihrem Account, Gäste über den Link mit Namen.
+Ablauf: Im Portal eine **Lobby** erstellen → Link `https://game.kulbarts.com/<token>` verteilen → alle treten mit Namen bei →
+der Host wählt das Spiel (und kann nach jeder Partie ein anderes wählen, derselbe Link bleibt). Alternativ lässt sich ein Raum
+mit vorgewähltem Spiel erstellen (`POST /api/rooms` mit `game`). Zero-Trust-Nutzer spielen direkt im Portal mit ihrem Account, Gäste über den Link mit Namen.
 
 ## Starten
 
