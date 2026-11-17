@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 pub mod chess;
+pub mod monopoly;
 pub mod skyjo;
 pub mod uno;
 
@@ -44,5 +45,5 @@ pub trait Game: Send {
 
 /// Alle verfügbaren Spiele.
 pub fn registry() -> Vec<Box<dyn GameKind>> {
-    vec![Box::new(uno::UnoKind), Box::new(skyjo::SkyjoKind), Box::new(chess::ChessKind)]
+    vec![Box::new(uno::UnoKind), Box::new(skyjo::SkyjoKind), Box::new(chess::ChessKind), Box::new(monopoly::MonopolyKind)]
 }

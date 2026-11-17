@@ -144,7 +144,8 @@
       [me, games] = await Promise.all([api('/api/me'), api('/api/games')]);
     } catch (e) {
       view.innerHTML = `<div class="center-page"><div class="card"><div class="title">Nicht angemeldet</div>
-        <p class="muted">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Neu laden</button></div></div>`;
+        <p class="muted">${esc(e.message)}</p><button class="btn" id="reload">Neu laden</button></div></div>`;
+      const rb = document.getElementById('reload'); if (rb) rb.onclick = () => location.reload();
       return;
     }
     paintMe();

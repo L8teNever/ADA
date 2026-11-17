@@ -79,3 +79,12 @@ im Querformat auf dem Handy gibt es ein eigenes zweispaltiges Layout.
 2 Spieler, Farben werden zufällig verteilt. Vollständige Regeln (Rochade, en passant, Umwandlung, Schach/Matt/Patt,
 50-Züge-Regel, dreifache Wiederholung, zu wenig Material), Aufgeben und Remis anbieten/annehmen.
 Die Zuggenerierung ist mit den Standard-Perft-Tests abgesichert (`cargo test`).
+
+## Monopoly
+
+2–6 Spieler, 1500 € Startgeld, eigenes Brett (40 Felder) mit allen Regeln: Grundstücke, Bahnhöfe und Werke kaufen oder
+versteigern, Miete (doppelt bei ganzer Farbgruppe), Häuser und Hotels (gleichmäßig bauen, begrenzter Vorrat),
+Hypotheken (10 % Aufschlag beim Auslösen), Handel (Geld, Grundstücke, Freikarten), Ereignis- und Gemeinschaftskarten,
+Gefängnis (Pasch, 50 € oder Freikarte, nach 3 Versuchen Zahlung), Steuern, Schulden, Bankrott und Aufgeben.
+Wer nicht mehr überbieten kann, scheidet automatisch aus der Auktion aus. Der letzte Spieler gewinnt.
+Hausregeln: „Frei Parken" zahlt nichts aus, Miete in der Auktion/Schuldenphase wird sofort verrechnet.

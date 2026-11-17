@@ -1,0 +1,81 @@
+/* Monopoly – Brett skaliert mit Breite UND Höhe; Aktionen liegen in der Brettmitte */
+.mo { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0;
+  --bs: clamp(280px, min(100vw - 20px, 100dvh - 170px), 760px); --cell: calc(var(--bs) / 11); }
+.mo-top { width: var(--bs); display: flex; flex-wrap: wrap; gap: 6px; }
+.mo-pl { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: var(--r-full); background: var(--md-sc-high); font-size: .78rem; font-weight: 600; border: 0; cursor: pointer; color: inherit; transition: transform .25s var(--spring), background .2s; }
+.mo-pl.turn { background: var(--md-primary); color: var(--md-on-primary); transform: scale(1.04); }
+.mo-pl.out { opacity: .4; text-decoration: line-through; }
+.mo-pl .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: .72rem; font-weight: 800; flex: none; }
+.mo-pl .m { font-variant-numeric: tabular-nums; opacity: .9; }
+
+.mo-board { width: var(--bs); height: var(--bs); display: grid; grid-template: repeat(11, 1fr) / repeat(11, 1fr); gap: 1px; background: var(--md-outline-variant);
+  border-radius: 12px; overflow: hidden; container-type: inline-size; box-shadow: 0 2px 10px var(--md-shadow); }
+.mo-sq { position: relative; display: flex; background: var(--md-sc-low); font-size: calc(var(--cell) * .27); line-height: 1.1; min-width: 0; min-height: 0; cursor: pointer; overflow: hidden; padding: 0; border: 0; color: inherit; text-align: center; }
+.mo-sq.side-b { flex-direction: column; } .mo-sq.side-t { flex-direction: column-reverse; }
+.mo-sq.side-l { flex-direction: row-reverse; } .mo-sq.side-r { flex-direction: row; }
+.mo-sq .band { flex: none; display: flex; align-items: center; justify-content: center; gap: 1px; }
+.mo-sq.side-b .band, .mo-sq.side-t .band { height: 24%; width: 100%; }
+.mo-sq.side-l .band, .mo-sq.side-r .band { width: 24%; height: 100%; flex-direction: column; }
+.mo-sq .body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 0; font-weight: 700; }
+.mo-sq .ic { font-size: calc(var(--cell) * .42); line-height: 1; }
+.mo-sq .nm { display: none; font-size: calc(var(--cell) * .2); font-weight: 600; opacity: .85; padding: 0 1px; overflow: hidden; max-width: 100%; }
+.mo-sq .pr { font-size: calc(var(--cell) * .24); opacity: .75; }
+.mo-sq.corner .ic { font-size: calc(var(--cell) * .55); }
+.mo-sq.owned { box-shadow: inset 0 0 0 calc(var(--cell) * .07) var(--own); }
+.mo-sq.mort { opacity: .45; background: repeating-linear-gradient(45deg, var(--md-sc-low), var(--md-sc-low) 4px, var(--md-sc-high) 4px, var(--md-sc-high) 8px); }
+.mo-sq .toks { position: absolute; left: 0; right: 0; bottom: 1px; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; pointer-events: none; z-index: 2; }
+.tok { width: calc(var(--cell) * .3); height: calc(var(--cell) * .3); border-radius: 50%; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,.5); transition: transform .2s var(--spring); }
+.tok.me { transform: scale(1.25); }
+.hs { width: calc(var(--cell) * .17); height: calc(var(--cell) * .17); background: #2e7d32; border-radius: 1px; box-shadow: 0 0 0 .5px #fff; }
+.htl { width: calc(var(--cell) * .34); height: calc(var(--cell) * .17); background: #c62828; border-radius: 2px; box-shadow: 0 0 0 .5px #fff; }
+@container (min-width: 620px) { .mo-sq .nm { display: block; } .mo-sq .ic { font-size: calc(var(--cell) * .34); } }
+
+.mo-center { grid-area: 2 / 2 / 11 / 11; background: var(--md-sc-high); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--cell) * .2);
+  padding: calc(var(--cell) * .25); text-align: center; overflow: hidden; font-size: clamp(.72rem, calc(var(--cell) * .3), 1rem); }
+.mo-center .btn { min-height: calc(var(--cell) * .95); padding: 0 calc(var(--cell) * .5); font-size: clamp(.8rem, calc(var(--cell) * .33), 1.05rem); }
+.mo-center .btn.small { min-height: calc(var(--cell) * .8); padding: 0 calc(var(--cell) * .35); }
+.mo-center .row { gap: calc(var(--cell) * .15); justify-content: center; }
+.mo-center .t { font-weight: 700; }
+.mo-center .sub { color: var(--md-on-surface-variant); }
+.mo-center input { width: calc(var(--cell) * 2.4); height: calc(var(--cell) * .8); border-radius: var(--r-sm); border: 1px solid var(--md-outline); background: transparent; text-align: center; font-size: 1rem; }
+.mo-die { width: calc(var(--cell) * 1.1); height: calc(var(--cell) * 1.1); border-radius: calc(var(--cell) * .25); background: #fff; color: #222; display: grid; place-items: center; font-weight: 800; font-size: calc(var(--cell) * .7); box-shadow: 0 2px 6px var(--md-shadow); animation: die .45s var(--spring); }
+@keyframes die { from { transform: rotate(-200deg) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.mo-note { padding: calc(var(--cell) * .15) calc(var(--cell) * .3); border-radius: var(--r-md); background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); font-size: .85em; }
+.mo-mini { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--r-md); background: var(--md-sc-lowest); max-width: 100%; }
+.mo-mini .band { width: 10px; align-self: stretch; border-radius: 3px; }
+
+.mo-panel { width: var(--bs); background: var(--md-sc-low); border-radius: var(--r-lg); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.mo-tabs { display: flex; gap: 4px; background: var(--md-sc-high); border-radius: var(--r-full); padding: 3px; }
+.mo-tabs button { flex: 1; border: 0; background: transparent; padding: 8px 4px; border-radius: var(--r-full); font-weight: 600; font-size: .82rem; cursor: pointer; color: var(--md-on-surface-variant); transition: background .2s; }
+.mo-tabs button.on { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.mo-body { display: flex; flex-direction: column; gap: 6px; max-height: 42dvh; overflow-y: auto; padding-right: 2px; }
+.mo-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-md); background: var(--md-sc-lowest); font-size: .85rem; flex-wrap: wrap; }
+.mo-row .grow { flex: 1; min-width: 90px; }
+.mo-row .chipc { width: 12px; height: 28px; border-radius: 4px; flex: none; }
+.mo-row .btn { min-height: 34px; padding: 0 12px; font-size: .8rem; }
+.mo-row .st { font-size: .72rem; color: var(--md-on-surface-variant); }
+.mo-gh { font-size: .72rem; font-weight: 700; letter-spacing: .04em; color: var(--md-on-surface-variant); padding: 4px 4px 0; }
+.mo-log { font-size: .8rem; padding: 4px 6px; border-radius: 8px; background: var(--md-sc-lowest); }
+
+.mo-modal { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.5); display: grid; place-items: center; padding: 12px; }
+.mo-sheet { background: var(--md-sc-high); color: var(--md-on-surface); border-radius: var(--r-xl); padding: 18px; width: min(100%, 520px); max-height: 92dvh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.mo-sheet .head { display: flex; align-items: center; gap: 10px; }
+.mo-sheet table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.mo-sheet td { padding: 3px 4px; } .mo-sheet td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.mo-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mo-two h4 { margin: 0 0 6px; font-size: .85rem; }
+.mo-pick { display: flex; flex-wrap: wrap; gap: 4px; }
+.mo-pick label { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: var(--r-sm); background: var(--md-sc-highest); font-size: .75rem; cursor: pointer; border-left: 5px solid var(--gc, #999); }
+.mo-pick label.on { background: var(--md-primary-container); }
+.mo-pick input { margin: 0; }
+.mo-money { width: 100%; height: 40px; border-radius: var(--r-sm); border: 1px solid var(--md-outline); background: transparent; padding: 0 10px; margin-bottom: 6px; }
+@media (max-width: 520px) { .mo-two { grid-template-columns: 1fr; } }
+
+/* Querformat / breite Fenster: Brett links, Panel rechts */
+@media (min-width: 900px), (orientation: landscape) and (min-width: 700px) {
+  .mo { display: grid; grid-template-columns: auto minmax(260px, 1fr); grid-template-rows: auto 1fr; align-items: start; justify-items: stretch; gap: 8px 16px;
+    --bs: clamp(300px, min(100dvh - 90px, 62vw), 780px); }
+  .mo-top { grid-column: 1 / -1; width: auto; }
+  .mo-panel { width: auto; align-self: stretch; }
+  .mo-body { max-height: calc(var(--bs) - 90px); }
+}
