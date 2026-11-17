@@ -121,6 +121,7 @@
         <div class="card filled"><div class="label muted">EINLADUNGSLINK</div>
           <div class="link-box"><code>${esc(o.shareLink)}</code>
             <button class="icon-btn" data-act="copy" aria-label="Link kopieren">${icon('copy')}</button></div>
+          <div class="qr-box">${Ada.qrSvg(o.shareLink)}<span class="muted">Scannen zum Beitreten</span></div>
           <p class="muted">Der Link bleibt für alle Spiele gleich – einfach mit einem Namen beitreten.</p></div>` : '';
 
       const tiles = (room.games || []).map((x) => `
@@ -197,8 +198,20 @@
       Ada.patch(root.querySelector('.bn'), banner);
       const head = shell.querySelector('.gs-head');
       Ada.patch(head, `<div class="title">${esc(room.game.name)}</div>
+        ${o.shareLink ? `<button class="btn text" data-act="invite">Einladen</button>` : ''}
         ${isHost ? `<button class="btn text" data-act="end">${room.over ? 'Zurück zur Lobby' : 'Runde beenden'}</button>` : ''}`);
       head.style.justifyContent = 'space-between';
+      const inv = head.querySelector('[data-act=invite]');
+      if (inv) inv.onclick = () => {
+        const d = document.createElement('div'); d.className = 'qr-dialog';
+        d.innerHTML = `<div class="card qr-card"><div class="title">Einladen</div>${Ada.qrSvg(o.shareLink)}
+          <div class="link-box"><code>${esc(o.shareLink)}</code><button class="icon-btn" data-c aria-label="Link kopieren">${icon('copy')}</button></div>
+          <button class="btn" data-x>Schließen</button></div>`;
+        d.onclick = (e) => { if (e.target === d) d.remove(); };
+        d.querySelector('[data-x]').onclick = () => d.remove();
+        d.querySelector('[data-c]').onclick = () => copy(o.shareLink);
+        document.body.append(d);
+      };
       const end = head.querySelector('[data-act=end]'); if (end) end.onclick = () => send({ type: 'lobby' });
       gameMod.render(shell.querySelector('.game-root'), state.game, {
         you, room, isHost, players: playersMap(),

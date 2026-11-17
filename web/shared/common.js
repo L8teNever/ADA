@@ -92,6 +92,16 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   };
 
+  // QR-Code als SVG (weiß auf dunkel, mit Ruhezone); braucht /shared/qrcode.js
+  Ada.qrSvg = (text) => {
+    if (typeof qrcode !== 'function') return '';
+    const qr = qrcode(0, 'M'); qr.addData(String(text)); qr.make();
+    const n = qr.getModuleCount(), m = 2; let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+    const w = n + m * 2;
+    return `<svg class="qr" viewBox="0 0 ${w} ${w}" shape-rendering="crispEdges" role="img" aria-label="QR-Code zum Einladungslink"><rect width="${w}" height="${w}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  };
+
   Ada.copy = async (text) => {
     try { await navigator.clipboard.writeText(text); }
     catch (_) {
