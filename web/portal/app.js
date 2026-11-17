@@ -25,26 +25,28 @@
 
   function viewGames() {
     titleEl.textContent = 'ADA';
-    view.innerHTML = `<div class="stack fade-in">
-      <div class="card hero">
+    view.innerHTML = `<div class="home fade-in">
+      <div class="card hero home-hero">
         <div class="label">WILLKOMMEN</div>
         <div class="display">Hi ${esc(me.name)} 👋</div>
-        <p>Erstelle eine Lobby, schick den Link an deine Freunde und wähle dann gemeinsam, was ihr spielt – oder tritt einem Raum bei.</p>
-        <div class="row"><button class="btn big" data-create="">${icon('add')} Lobby erstellen</button></div>
-        <form id="join" class="row" style="flex-wrap:nowrap;margin-top:8px">
-          <label class="field" style="flex:1;min-width:0"><input name="code" placeholder="Link oder Code" autocomplete="off" autocapitalize="off"><span>Raum beitreten</span></label>
+        <p class="hero-desc">Erstelle eine Lobby, schick den Link an deine Freunde und wähle dann gemeinsam, was ihr spielt – oder tritt einem Raum bei.</p>
+        <button class="btn big" data-create="">${icon('add')} Lobby erstellen</button>
+        <form id="join" class="row nowrap">
+          <label class="field grow"><input name="code" placeholder="Link oder Code" autocomplete="off" autocapitalize="off"><span>Raum beitreten</span></label>
           <button class="btn" type="submit" aria-label="Beitreten">${icon('forward')}</button>
         </form>
       </div>
-      <div class="headline section">Oder direkt mit einem Spiel starten</div>
-      <div class="grid">${games.map((g) => `
-        <div class="card">
-          <div class="icon-badge">${icon('cards')}</div>
-          <div class="title">${esc(g.name)}</div>
-          <p class="muted">${esc(g.description)}</p>
-          <div class="row"><span class="chip">${icon('group')} ${g.min_players}–${g.max_players}</span></div>
-          <button class="btn" data-create="${esc(g.id)}">${icon('add')} Mit diesem Spiel starten</button>
-        </div>`).join('') || '<div class="empty">Noch keine Spiele installiert.</div>'}
+      <div class="home-games">
+        <div class="headline">Oder direkt mit einem Spiel starten</div>
+        <div class="grid gcards">${games.map((g) => `
+          <div class="card gcard">
+            <div class="icon-badge">${icon('cards')}</div>
+            <div class="gc-text"><div class="title">${esc(g.name)}</div>
+              <p class="muted">${esc(g.description)}</p>
+              <span class="chip">${icon('group')} ${g.min_players}–${g.max_players}</span></div>
+            <button class="btn tonal" data-create="${esc(g.id)}" aria-label="${esc(g.name)} starten">${icon('play')}<span class="gc-btn-t"> Starten</span></button>
+          </div>`).join('') || '<div class="empty">Noch keine Spiele installiert.</div>'}
+        </div>
       </div>
     </div>`;
     view.querySelectorAll('[data-create]').forEach((b) => (b.onclick = () => createRoom(b.dataset.create)));

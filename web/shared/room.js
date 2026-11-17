@@ -16,10 +16,10 @@
     loaded[info.id] = new Promise((resolve, reject) => {
       if (info.css) {
         const l = document.createElement('link');
-        l.rel = 'stylesheet'; l.href = info.css + '?v=20261117a'; document.head.append(l);
+        l.rel = 'stylesheet'; l.href = info.css + '?v=20261117b'; document.head.append(l);
       }
       const s = document.createElement('script');
-      s.src = info.js + '?v=20261117a'; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
+      s.src = info.js + '?v=20261117b'; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
       document.head.append(s);
     });
     return loaded[info.id];
@@ -118,11 +118,15 @@
           ${isHost && p.id !== you ? `<button class="icon-btn" data-kick="${p.id}" aria-label="Entfernen">${icon('close')}</button>` : ''}
         </div>`).join('');
       const share = o.shareLink ? `
-        <div class="card filled"><div class="label muted">EINLADUNGSLINK</div>
-          <div class="link-box"><code>${esc(o.shareLink)}</code>
-            <button class="icon-btn" data-act="copy" aria-label="Link kopieren">${icon('copy')}</button></div>
-          <div class="qr-box">${Ada.qrSvg(o.shareLink)}<span class="muted">Scannen zum Beitreten</span></div>
-          <p class="muted">Der Link bleibt für alle Spiele gleich – einfach mit einem Namen beitreten.</p></div>` : '';
+        <div class="card filled invite">
+          ${Ada.qrSvg(o.shareLink)}
+          <div class="invite-info">
+            <div class="label muted">EINLADEN</div>
+            <div class="link-box"><code>${esc(o.shareLink)}</code>
+              <button class="icon-btn" data-act="copy" aria-label="Link kopieren">${icon('copy')}</button></div>
+            <span class="muted hint">QR scannen oder Link teilen – er gilt für alle Spiele.</span>
+          </div>
+        </div>` : '';
 
       const tiles = (room.games || []).map((x) => `
         <button class="gt ${g && g.id === x.id ? 'on' : ''}" data-pick="${esc(x.id)}" ${isHost ? '' : 'disabled'}>
@@ -143,28 +147,28 @@
 
       Ada.patch(root, `${banner}
         <div class="room-wrap lobby fade-in">
-          <div class="stack">
-            <div class="card hero">
-              <div class="label">${g ? 'AUSGEWÄHLT' : 'SPIELE-LOBBY'}</div>
-              <div class="display">${g ? esc(g.name) : 'Was spielen wir?'}</div>
-              <p>${g ? esc(g.description) : isHost ? 'Du bist der Host: Wähle unten ein Spiel – nach der Runde kannst du jederzeit ein anderes wählen.' : 'Der Host wählt gleich das Spiel.'}</p>
-              <div class="row"><span class="chip">${online} online</span>${g ? `<span class="chip">${g.min_players}–${g.max_players} Spieler</span>` : ''}</div>
-            </div>
-            <div class="card">
-              <div class="label muted">${isHost ? 'SPIEL WÄHLEN' : 'SPIELE'}</div>
-              <div class="game-grid">${tiles}</div>
-              ${opts ? `<div class="opts">${opts}</div>` : ''}
-            </div>
-            ${share}
+          <div class="card hero lb-hero">
+            <div class="row between"><div class="label">${g ? 'AUSGEWÄHLT' : 'SPIELE-LOBBY'}</div>
+              <div class="row"><span class="chip">${online} online</span>${g ? `<span class="chip">${g.min_players}–${g.max_players} Spieler</span>` : ''}</div></div>
+            <div class="display">${g ? esc(g.name) : 'Was spielen wir?'}</div>
+            <p class="hero-desc">${g ? esc(g.description) : isHost ? 'Du bist der Host: Wähle ein Spiel – nach der Runde kannst du jederzeit ein anderes wählen.' : 'Der Host wählt gleich das Spiel.'}</p>
           </div>
-          <div class="stack">
-            <div class="title">Spieler</div>
+          <div class="lb-invite">${share}</div>
+          <div class="card lb-games">
+            <div class="label muted">${isHost ? 'SPIEL WÄHLEN' : 'SPIELE'}</div>
+            <div class="game-grid">${tiles}</div>
+            ${opts ? `<div class="opts">${opts}</div>` : ''}
+          </div>
+          <div class="stack lb-players">
+            <div class="title">Spieler <span class="muted">(${room.players.length})</span></div>
             <div class="list">${rows}</div>
-            ${isHost
-              ? `<button class="btn big" data-act="start" ${canStart ? '' : 'disabled'}>${icon('play')} ${g ? esc(g.name) + ' starten' : 'Spiel wählen'}</button>`
-              : `<p class="muted">Warte, bis der Host das Spiel startet…</p>`}
-            ${startHint ? `<p class="muted">${esc(startHint)}</p>` : ''}
-            <button class="btn text" data-act="leave">Raum verlassen</button>
+          </div>
+          <div class="lb-action">
+            ${startHint ? `<p class="muted hint">${esc(startHint)}</p>` : ''}
+            <div class="row nowrap">
+              ${isHost ? `<button class="btn big grow" data-act="start" ${canStart ? '' : 'disabled'}>${icon('play')} ${g ? esc(g.name) + ' starten' : 'Spiel wählen'}</button>` : ''}
+              <button class="btn ${isHost ? 'text' : 'outlined grow'}" data-act="leave">Verlassen</button>
+            </div>
           </div>
         </div>`);
       const q = (sel) => root.querySelector(sel);
