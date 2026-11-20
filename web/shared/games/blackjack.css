@@ -1,0 +1,94 @@
+/* Blackjack – Handy zuerst; Tablet (Hoch/Quer) und PC bekommen größere Karten und zwei Spalten. */
+.bj { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0;
+  --cw: clamp(40px, min(13vw, 9.5dvh), 74px); --felt: #14532d; --felt2: #0e3b20; }
+.bj > * , .bj-main > *, .bj-board > *, .bj-side > * { min-width: 0; }
+.bj-top { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.bj-clock:empty { display: none; }
+.bj-main { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.bj-board, .bj-seat.me { background: radial-gradient(ellipse at 50% 0%, var(--felt), var(--felt2)); color: #fff; border-radius: var(--r-xl); }
+.bj-board { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.bj-side { display: flex; flex-direction: column; gap: 8px; }
+
+/* Karten */
+.pc { --w: var(--cw); width: var(--w); height: calc(var(--w) * 1.4); flex: none; border-radius: calc(var(--w) * .12);
+  background: #fff; color: #1b1b1f; position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: calc(var(--w) * .08) calc(var(--w) * .1);
+  font-weight: 800; font-size: calc(var(--w) * .36); line-height: 1; box-shadow: 0 2px 6px rgba(0,0,0,.4); user-select: none;
+  animation: pc-in .35s var(--spring, ease) both; }
+.pc.red { color: #d32f2f; }
+.pc .s { font-size: 1.15em; margin-top: 2px; }
+.pc.back { background: repeating-linear-gradient(45deg, #1e3a8a 0 6px, #172554 6px 12px); box-shadow: 0 2px 6px rgba(0,0,0,.4), inset 0 0 0 calc(var(--w) * .06) #fff; }
+.pc.ghost { background: transparent; box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); animation: none; }
+.pc + .pc { margin-left: calc(var(--w) * -.42); }
+@keyframes pc-in { from { opacity: 0; transform: translateY(-14px) scale(.9); } to { opacity: 1; transform: none; } }
+.bj-cards { display: flex; align-items: flex-start; padding: 2px 0 2px calc(var(--w, var(--cw)) * 0); min-height: calc(var(--cw) * 1.4); }
+
+/* Dealer */
+.bj-dealer { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.bj-seat-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bj-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bj-val { display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 8px; border-radius: var(--r-full); background: rgba(255,255,255,.18); font-weight: 800; }
+.bj-val small { font-weight: 600; opacity: .8; margin-left: 3px; }
+
+/* Mitspieler */
+.bj-others { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.bj-others .bj-seat { background: rgba(0,0,0,.22); border-radius: var(--r-lg); padding: 8px 10px; --cw: calc(var(--bjw) * .62); }
+.bj { --bjw: clamp(40px, min(13vw, 9.5dvh), 74px); }
+.bj-others .bj-cards { min-height: calc(var(--cw) * 1.4); }
+.bj-seat { display: flex; flex-direction: column; gap: 6px; transition: box-shadow .25s, opacity .25s, transform .3s var(--spring, ease); }
+.bj-seat.turn { box-shadow: 0 0 0 3px var(--md-primary, #7aa7ff); }
+.bj-seat.idle { opacity: .55; }
+.bj-seat .avatar { width: 28px; height: 28px; font-size: .8rem; }
+.bj-chips { margin-left: auto; font-weight: 700; white-space: nowrap; }
+.bj-hands { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.bj-hand { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bj-hmeta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .85rem; }
+.bj-bet { opacity: .9; }
+.bj-tag { padding: 2px 8px; border-radius: var(--r-full); background: rgba(255,255,255,.18); font-weight: 700; font-size: .78rem; }
+.bj-tag.r-win, .bj-tag.r-blackjack { background: #2e7d32; }
+.bj-tag.r-lose, .bj-tag.r-bust { background: #b3261e; }
+.bj-foot { font-size: .8rem; opacity: .9; min-height: 1.1em; }
+.plus { color: #7dffa0; } .minus { color: #ff9a92; }
+
+/* Eigener Platz */
+.bj-seat.me { padding: 10px 12px; }
+.bj-seat.me .bj-cards { min-height: calc(var(--cw) * 1.4); }
+.bj-seat.me .bj-hand { flex: 1 1 auto; }
+.bj-seat.me .bj-val { font-size: 1.05rem; }
+
+/* Steuerung: große Touch-Ziele */
+.bj-controls { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.bj-note { text-align: center; padding: 6px 4px; }
+.bj-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bj-actions .btn { min-height: 56px; }
+.bj-bet-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.bj-bet-row .btn { flex: 1; }
+.bj-chip { width: 58px; height: 58px; border-radius: 50%; border: 4px dashed rgba(255,255,255,.85); background: var(--md-primary); color: var(--md-on-primary);
+  font-weight: 800; cursor: pointer; transition: transform .2s var(--spring, ease); }
+.bj-chip:active { transform: scale(.9); } .bj-chip[disabled] { opacity: .35; pointer-events: none; }
+.bj-over { display: flex; flex-direction: column; gap: 14px; align-items: stretch; text-align: center; max-width: 520px; width: 100%; margin: 0 auto; padding: 20px; border-radius: var(--r-xl); background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+.bj-medal { width: 32px; text-align: center; font-size: 1.3rem; }
+
+/* Tablet hochkant: größere Karten, Mitspieler im Raster */
+@media (min-width: 600px) {
+  .bj { --cw: clamp(56px, min(10vw, 10dvh), 96px); --bjw: clamp(56px, min(10vw, 10dvh), 96px); gap: 12px; }
+  .bj-board { padding: 14px; }
+  .bj-actions { grid-template-columns: repeat(4, 1fr); }
+  .bj-actions .btn { min-height: 60px; font-size: 1.05rem; }
+}
+/* Querformat (Tablet, PC, Handy quer): links Tisch, rechts eigener Platz + Knöpfe */
+@media (min-width: 700px) and (orientation: landscape), (min-width: 1000px) {
+  .bj-main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+  .bj-board { justify-content: flex-start; }
+  .bj-side { justify-content: flex-start; }
+  .bj-actions { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 1000px) { .bj { --cw: clamp(60px, 6vw, 104px); --bjw: clamp(60px, 6vw, 104px); } }
+/* niedriges Querformat (Handy quer): kompakt, nichts scrollt */
+@media (max-height: 520px) and (orientation: landscape) {
+  .bj { --cw: clamp(30px, 11dvh, 54px); --bjw: clamp(30px, 11dvh, 54px); gap: 4px; }
+  .bj-top { justify-content: flex-start; }
+  .bj-actions .btn, .bj-actions { min-height: 44px; }
+  .bj-chip { width: 44px; height: 44px; font-size: .8rem; }
+  .bj-board { padding: 8px; gap: 6px; }
+  .bj-seat.me { padding: 6px 10px; }
+}

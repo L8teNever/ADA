@@ -9,6 +9,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
+pub mod blackjack;
 pub mod chess;
 pub mod monopoly;
 pub mod skyjo;
@@ -72,5 +73,6 @@ pub fn registry() -> Vec<Box<dyn GameKind>> {
         Box::new(chess::ChessKind),
         Box::new(monopoly::MonopolyKind),
         Box::new(skribbl::SkribblKind),
+        Box::new(blackjack::BlackjackKind),
     ]
 }

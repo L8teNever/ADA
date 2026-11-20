@@ -16,10 +16,10 @@
     loaded[info.id] = new Promise((resolve, reject) => {
       if (info.css) {
         const l = document.createElement('link');
-        l.rel = 'stylesheet'; l.href = info.css + '?v=20261117c'; document.head.append(l);
+        l.rel = 'stylesheet'; l.href = info.css + '?v=20261120a'; document.head.append(l);
       }
       const s = document.createElement('script');
-      s.src = info.js + '?v=20261117c'; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
+      s.src = info.js + '?v=20261120a'; s.onload = () => resolve(Ada.games[info.id]); s.onerror = () => reject(new Error('Spiel konnte nicht geladen werden'));
       document.head.append(s);
     });
     return loaded[info.id];
@@ -101,6 +101,9 @@
       skribbl: [
         { key: 'rounds', label: 'Runden', values: [1, 2, 3, 5, 8], def: 3, suffix: '' },
         { key: 'time', label: 'Zeit pro Zug', values: [40, 60, 80, 120, 180], def: 80, suffix: ' s' },
+      ],
+      blackjack: [
+        { key: 'rounds', label: 'Runden', values: [5, 10, 20, 30], def: 10, suffix: '' },
       ],
     };
 
