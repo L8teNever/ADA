@@ -199,9 +199,6 @@ impl Blackjack {
     }
 
     fn deal(&mut self) {
-        if self.shoe.len() < DECKS * 52 / 4 {
-            self.shoe = new_shoe();
-        }
         self.dealer.clear();
         let idxs: Vec<usize> = (0..self.seats.len()).filter(|&i| self.seats[i].has_bet).collect();
         for &i in &idxs {
@@ -312,6 +309,10 @@ impl Blackjack {
         if self.round >= self.rounds {
             self.over = true;
             return;
+        }
+        // Schuh unter 25 % → neu mischen
+        if self.shoe.len() < DECKS * 52 / 4 {
+            self.shoe = new_shoe();
         }
         self.round += 1;
         for s in self.seats.iter_mut() {
